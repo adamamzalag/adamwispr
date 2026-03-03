@@ -765,4 +765,5 @@ OpenWhispr is actively maintained and ready for production use. Current version:
 - **[Electron](https://www.electronjs.org/)** - Cross-platform desktop application framework
 - **[React](https://react.dev/)** - UI component library
 - **[shadcn/ui](https://ui.shadcn.com/)** - Beautiful UI components built on Radix primitives
+- **[Hugging Face](https://huggingface.co/)** - Model hosting platform for our local speech recognition and language models
 - **[llama.cpp](https://github.com/ggerganov/llama.cpp)** - Local LLM inference for AI-powered text processing
