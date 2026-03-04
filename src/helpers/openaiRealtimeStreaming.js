@@ -62,6 +62,23 @@ class OpenAIRealtimeStreaming {
 
       this.ws.on("open", () => {
         debugLogger.debug("OpenAI Realtime WebSocket opened");
+        this.ws.send(
+          JSON.stringify({
+            type: "transcription_session.update",
+            session: {
+              input_audio_format: "pcm16",
+              input_audio_transcription: {
+                model: this.model,
+              },
+              turn_detection: {
+                type: "server_vad",
+                threshold: 0.5,
+                silence_duration_ms: 800,
+                prefix_padding_ms: 300,
+              },
+            },
+          })
+        );
       });
 
       this.ws.on("message", (data) => {
