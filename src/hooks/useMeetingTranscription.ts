@@ -67,10 +67,10 @@ registerProcessor("meeting-pcm-processor", MeetingPCMProcessor);
 
 const getMeetingMicConstraints = async (): Promise<MediaStreamConstraints> => {
   const { preferBuiltInMic, selectedMicDeviceId } = getSettings();
-  const noProcessing = {
+  const micProcessing = {
     echoCancellation: false,
     noiseSuppression: false,
-    autoGainControl: false,
+    autoGainControl: true,
   };
 
   if (preferBuiltInMic) {
@@ -84,7 +84,7 @@ const getMeetingMicConstraints = async (): Promise<MediaStreamConstraints> => {
         return {
           audio: {
             deviceId: { exact: builtInMic.deviceId },
-            ...noProcessing,
+            ...micProcessing,
           },
         };
       }
@@ -101,12 +101,12 @@ const getMeetingMicConstraints = async (): Promise<MediaStreamConstraints> => {
     return {
       audio: {
         deviceId: { exact: selectedMicDeviceId },
-        ...noProcessing,
+        ...micProcessing,
       },
     };
   }
 
-  return { audio: noProcessing };
+  return { audio: micProcessing };
 };
 
 const createAudioPipeline = async ({
@@ -375,6 +375,15 @@ export function useMeetingTranscription(): UseMeetingTranscriptionReturn {
         label: "Meeting system",
         onChunk: (chunk) => {
           if (!isRecordingRef.current) return;
+          const samples = new Int16Array(chunk);
+          let hasSignal = false;
+          for (let i = 0; i < samples.length; i++) {
+            if (samples[i] !== 0) {
+              hasSignal = true;
+              break;
+            }
+          }
+          if (!hasSignal) return;
           if (socketReady) {
             window.electronAPI?.meetingTranscriptionSend?.(chunk);
             return;
