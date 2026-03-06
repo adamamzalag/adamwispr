@@ -1956,7 +1956,8 @@ export default function SettingsPage({ activeSection = "general" }: SettingsPage
                             defaultValue: "Install ydotool",
                           }),
                           desc: t("settingsPage.general.waylandPaste.guide.ydotool.step1Desc", {
-                            defaultValue: "Use your distribution's package manager to install ydotool.",
+                            defaultValue:
+                              "Use your distribution's package manager to install ydotool.",
                           }),
                           cmds: [
                             { label: "Ubuntu / Pop!_OS / Debian", cmd: "sudo apt install ydotool" },
@@ -1988,10 +1989,14 @@ export default function SettingsPage({ activeSection = "general" }: SettingsPage
                             defaultValue: "Install ydotoold",
                           }),
                           desc: t("settingsPage.general.waylandPaste.guide.ydotoold.step1Desc", {
-                            defaultValue: "On Ubuntu and Pop!_OS, ydotoold is a separate package. On Fedora, it's included with ydotool.",
+                            defaultValue:
+                              "On Ubuntu and Pop!_OS, ydotoold is a separate package. On Fedora, it's included with ydotool.",
                           }),
                           cmds: [
-                            { label: "Ubuntu / Pop!_OS / Debian", cmd: "sudo apt install ydotoold" },
+                            {
+                              label: "Ubuntu / Pop!_OS / Debian",
+                              cmd: "sudo apt install ydotoold",
+                            },
                             { label: "Fedora", cmd: "# Already included in the ydotool package" },
                           ],
                         },
@@ -2013,46 +2018,86 @@ export default function SettingsPage({ activeSection = "general" }: SettingsPage
                               defaultValue: "no udev rule found",
                             })
                         : undefined,
-                      steps: ydotoolStatus.hasUdevRule && !ydotoolStatus.hasUinput
-                        ? [
-                            {
-                              title: t("settingsPage.general.waylandPaste.guide.uinput.ruleFoundTitle", {
-                                defaultValue: "udev rule already configured",
-                              }),
-                              desc: t("settingsPage.general.waylandPaste.guide.uinput.ruleFoundDesc", {
-                                defaultValue: "The udev rule for /dev/uinput is already on your system but hasn't taken effect. Try reloading:",
-                              }),
-                              cmds: [{ cmd: "sudo udevadm control --reload-rules && sudo udevadm trigger /dev/uinput" }],
-                            },
-                            {
-                              title: t("settingsPage.general.waylandPaste.guide.uinput.rebootTitle", {
-                                defaultValue: "If reloading didn't help, reboot",
-                              }),
-                              desc: t("settingsPage.general.waylandPaste.guide.uinput.rebootDesc", {
-                                defaultValue: "On some distros, udev changes only apply after a full reboot. Restart your computer and come back to re-check.",
-                              }),
-                            },
-                          ]
-                        : [
-                            {
-                              title: t("settingsPage.general.waylandPaste.guide.uinput.step1Title", {
-                                defaultValue: "Create a udev rule",
-                              }),
-                              desc: t("settingsPage.general.waylandPaste.guide.uinput.step1Desc", {
-                                defaultValue: "This rule grants access to /dev/uinput for users in the input group.",
-                              }),
-                              cmds: [{ cmd: 'echo \'KERNEL=="uinput", GROUP="input", MODE="0660", TAG+="uaccess"\' | sudo tee /etc/udev/rules.d/70-uinput.rules' }],
-                            },
-                            {
-                              title: t("settingsPage.general.waylandPaste.guide.uinput.step2Title", {
-                                defaultValue: "Reload udev rules",
-                              }),
-                              desc: t("settingsPage.general.waylandPaste.guide.uinput.step2Desc", {
-                                defaultValue: "Apply the new rule without rebooting.",
-                              }),
-                              cmds: [{ cmd: "sudo udevadm control --reload-rules && sudo udevadm trigger /dev/uinput" }],
-                            },
-                      ],
+                      steps:
+                        ydotoolStatus.hasUdevRule && !ydotoolStatus.hasUinput
+                          ? [
+                              {
+                                title: t(
+                                  "settingsPage.general.waylandPaste.guide.uinput.ruleFoundTitle",
+                                  {
+                                    defaultValue: "udev rule already configured",
+                                  }
+                                ),
+                                desc: t(
+                                  "settingsPage.general.waylandPaste.guide.uinput.ruleFoundDesc",
+                                  {
+                                    defaultValue:
+                                      "The udev rule for /dev/uinput is already on your system but hasn't taken effect. Try reloading:",
+                                  }
+                                ),
+                                cmds: [
+                                  {
+                                    cmd: "sudo udevadm control --reload-rules && sudo udevadm trigger /dev/uinput",
+                                  },
+                                ],
+                              },
+                              {
+                                title: t(
+                                  "settingsPage.general.waylandPaste.guide.uinput.rebootTitle",
+                                  {
+                                    defaultValue: "If reloading didn't help, reboot",
+                                  }
+                                ),
+                                desc: t(
+                                  "settingsPage.general.waylandPaste.guide.uinput.rebootDesc",
+                                  {
+                                    defaultValue:
+                                      "On some distros, udev changes only apply after a full reboot. Restart your computer and come back to re-check.",
+                                  }
+                                ),
+                              },
+                            ]
+                          : [
+                              {
+                                title: t(
+                                  "settingsPage.general.waylandPaste.guide.uinput.step1Title",
+                                  {
+                                    defaultValue: "Create a udev rule",
+                                  }
+                                ),
+                                desc: t(
+                                  "settingsPage.general.waylandPaste.guide.uinput.step1Desc",
+                                  {
+                                    defaultValue:
+                                      "This rule grants access to /dev/uinput for users in the input group.",
+                                  }
+                                ),
+                                cmds: [
+                                  {
+                                    cmd: 'echo \'KERNEL=="uinput", GROUP="input", MODE="0660", TAG+="uaccess"\' | sudo tee /etc/udev/rules.d/70-uinput.rules',
+                                  },
+                                ],
+                              },
+                              {
+                                title: t(
+                                  "settingsPage.general.waylandPaste.guide.uinput.step2Title",
+                                  {
+                                    defaultValue: "Reload udev rules",
+                                  }
+                                ),
+                                desc: t(
+                                  "settingsPage.general.waylandPaste.guide.uinput.step2Desc",
+                                  {
+                                    defaultValue: "Apply the new rule without rebooting.",
+                                  }
+                                ),
+                                cmds: [
+                                  {
+                                    cmd: "sudo udevadm control --reload-rules && sudo udevadm trigger /dev/uinput",
+                                  },
+                                ],
+                              },
+                            ],
                     },
                     {
                       key: "hasGroup",
@@ -2075,7 +2120,8 @@ export default function SettingsPage({ activeSection = "general" }: SettingsPage
                             defaultValue: "Log out and back in",
                           }),
                           desc: t("settingsPage.general.waylandPaste.guide.group.step2Desc", {
-                            defaultValue: "Group changes only take effect after a new login session. Log out of your desktop and log back in, then reopen OpenWhispr.",
+                            defaultValue:
+                              "Group changes only take effect after a new login session. Log out of your desktop and log back in, then reopen OpenWhispr.",
                           }),
                         },
                       ],
@@ -2101,10 +2147,12 @@ export default function SettingsPage({ activeSection = "general" }: SettingsPage
                             defaultValue: "Create the service file",
                           }),
                           desc: t("settingsPage.general.waylandPaste.guide.service.step2Desc", {
-                            defaultValue: "This creates a user-level systemd service that starts ydotoold automatically when you log in.",
+                            defaultValue:
+                              "This creates a user-level systemd service that starts ydotoold automatically when you log in.",
                           }),
-                          cmds: [{
-                            cmd: `cat > ~/.config/systemd/user/ydotoold.service << 'EOF'
+                          cmds: [
+                            {
+                              cmd: `cat > ~/.config/systemd/user/ydotoold.service << 'EOF'
 [Unit]
 Description=ydotoold - ydotool daemon
 After=graphical-session.target
@@ -2118,13 +2166,18 @@ RestartSec=1s
 [Install]
 WantedBy=graphical-session.target
 EOF`,
-                          }],
+                            },
+                          ],
                         },
                         {
                           title: t("settingsPage.general.waylandPaste.guide.service.step3Title", {
                             defaultValue: "Reload and enable",
                           }),
-                          cmds: [{ cmd: "systemctl --user daemon-reload && systemctl --user enable ydotoold" }],
+                          cmds: [
+                            {
+                              cmd: "systemctl --user daemon-reload && systemctl --user enable ydotoold",
+                            },
+                          ],
                         },
                       ],
                     },
@@ -2145,7 +2198,11 @@ EOF`,
                           desc: t("settingsPage.general.waylandPaste.guide.daemon.step1Desc", {
                             defaultValue: "Start ydotoold and enable it so it runs on every login.",
                           }),
-                          cmds: [{ cmd: "systemctl --user enable ydotoold && systemctl --user start ydotoold" }],
+                          cmds: [
+                            {
+                              cmd: "systemctl --user enable ydotoold && systemctl --user start ydotoold",
+                            },
+                          ],
                         },
                         {
                           title: t("settingsPage.general.waylandPaste.guide.daemon.step2Title", {
@@ -2197,9 +2254,13 @@ EOF`,
                                     )}
                                     <div className="flex-1 min-w-0">
                                       <span className="text-sm font-medium">{item.label}</span>
-                                      <span className="text-xs text-muted-foreground ml-2">{item.desc}</span>
+                                      <span className="text-xs text-muted-foreground ml-2">
+                                        {item.desc}
+                                      </span>
                                       {item.note && (
-                                        <p className="text-[11px] text-amber-600 dark:text-amber-400 mt-0.5">{item.note}</p>
+                                        <p className="text-[11px] text-amber-600 dark:text-amber-400 mt-0.5">
+                                          {item.note}
+                                        </p>
                                       )}
                                     </div>
                                     {!item.ok && (
@@ -2231,7 +2292,10 @@ EOF`,
                       )}
 
                       {/* Step-by-step guide dialog */}
-                      <Dialog open={!!activeGuide} onOpenChange={(open) => !open && setYdotoolGuideKey(null)}>
+                      <Dialog
+                        open={!!activeGuide}
+                        onOpenChange={(open) => !open && setYdotoolGuideKey(null)}
+                      >
                         <DialogContent className="sm:max-w-lg max-h-[80vh] overflow-y-auto">
                           {activeGuide && (
                             <>
@@ -2252,23 +2316,32 @@ EOF`,
                                       <div className="flex-1 min-w-0">
                                         <p className="text-sm font-medium">{step.title}</p>
                                         {step.desc && (
-                                          <p className="text-xs text-muted-foreground mt-0.5">{step.desc}</p>
+                                          <p className="text-xs text-muted-foreground mt-0.5">
+                                            {step.desc}
+                                          </p>
                                         )}
                                         {step.cmds && step.cmds.length > 0 && (
                                           <div className="mt-2 space-y-2">
                                             {step.cmds.map((c, j) => (
                                               <div key={j}>
                                                 {c.label && (
-                                                  <p className="text-[11px] text-muted-foreground mb-1">{c.label}</p>
+                                                  <p className="text-[11px] text-muted-foreground mb-1">
+                                                    {c.label}
+                                                  </p>
                                                 )}
                                                 <div className="flex items-start gap-1.5">
                                                   <pre className="flex-1 text-[11px] bg-muted/60 rounded-md px-3 py-2 font-mono whitespace-pre-wrap break-all select-all overflow-x-auto">
                                                     {c.cmd}
                                                   </pre>
                                                   <button
-                                                    onClick={() => navigator.clipboard.writeText(c.cmd)}
+                                                    onClick={() =>
+                                                      navigator.clipboard.writeText(c.cmd)
+                                                    }
                                                     className="shrink-0 p-1.5 rounded-md hover:bg-muted transition-colors text-muted-foreground hover:text-foreground"
-                                                    title={t("settingsPage.general.waylandPaste.copy", { defaultValue: "Copy" })}
+                                                    title={t(
+                                                      "settingsPage.general.waylandPaste.copy",
+                                                      { defaultValue: "Copy" }
+                                                    )}
                                                   >
                                                     <Copy className="w-3.5 h-3.5" />
                                                   </button>
@@ -2291,7 +2364,6 @@ EOF`,
                 })()}
               </div>
             )}
-
           </div>
         );
 

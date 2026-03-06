@@ -58,11 +58,7 @@ function isUinputAccessible() {
 }
 
 function udevRuleExists() {
-  const ruleDirs = [
-    "/etc/udev/rules.d",
-    "/usr/lib/udev/rules.d",
-    "/lib/udev/rules.d",
-  ];
+  const ruleDirs = ["/etc/udev/rules.d", "/usr/lib/udev/rules.d", "/lib/udev/rules.d"];
   for (const dir of ruleDirs) {
     try {
       const files = fs.readdirSync(dir);

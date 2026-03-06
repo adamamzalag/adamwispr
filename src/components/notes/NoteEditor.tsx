@@ -373,9 +373,7 @@ export default function NoteEditor({
     if (!container) return;
 
     const buttons = container.querySelectorAll<HTMLButtonElement>("[data-segment-button]");
-    const activeBtn = Array.from(buttons).find(
-      (btn) => btn.dataset.segmentValue === viewMode
-    );
+    const activeBtn = Array.from(buttons).find((btn) => btn.dataset.segmentValue === viewMode);
     if (!activeBtn) return;
 
     const cr = container.getBoundingClientRect();
@@ -727,9 +725,7 @@ export default function NoteEditor({
                   )}
                 >
                   <AlignLeft size={10} />
-                  {hasMeetingTranscript
-                    ? t("notes.editor.notes")
-                    : t("notes.editor.raw")}
+                  {hasMeetingTranscript ? t("notes.editor.notes") : t("notes.editor.raw")}
                 </button>
                 {enhancement && (
                   <button
