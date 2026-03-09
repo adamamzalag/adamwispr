@@ -134,21 +134,6 @@ class IPCHandlers {
     }
   }
 
-  _setupDictationCallbacks(streaming, event) {
-    streaming.onPartialTranscript = (text) => {
-      event.sender.send("dictation-realtime-partial", { text });
-    };
-    streaming.onFinalTranscript = (text) => {
-      event.sender.send("dictation-realtime-final", { text });
-    };
-    streaming.onError = (error) => {
-      event.sender.send("dictation-realtime-error", { error: error.message });
-    };
-    streaming.onSessionEnd = () => {
-      event.sender.send("dictation-realtime-session-end", {});
-    };
-  }
-
   _cleanupTextEditMonitor() {
     if (this._autoLearnDebounceTimer) {
       clearTimeout(this._autoLearnDebounceTimer);
@@ -2275,6 +2260,25 @@ class IPCHandlers {
       return win;
     };
 
+    const setupDictationCallbacks = (streaming, event) => {
+      streaming.onPartialTranscript = (text) => event.sender.send("dictation-realtime-partial", { text });
+      streaming.onFinalTranscript = (text) => event.sender.send("dictation-realtime-final", { text });
+      streaming.onError = (err) => event.sender.send("dictation-realtime-error", { error: err.message });
+      streaming.onSessionEnd = (data) => event.sender.send("dictation-realtime-session-end", data || {});
+    };
+
+    const connectDictationStreaming = async (event, options) => {
+      if (this._dictationStreaming) {
+        await this._dictationStreaming.disconnect().catch(() => {});
+        this._dictationStreaming = null;
+      }
+      const apiKey = await fetchRealtimeToken(event, { mode: options.mode });
+      const streaming = new OpenAIRealtimeStreaming();
+      setupDictationCallbacks(streaming, event);
+      await streaming.connect({ apiKey, model: options.model || "gpt-4o-mini-transcribe" });
+      this._dictationStreaming = streaming;
+    };
+
     // Pre-warm: fetch token + connect WebSocket before user hits record
     ipcMain.handle("meeting-transcription-prepare", async (event, options = {}) => {
       if (meetingTranscriptionPrepareInProgress || meetingTranscriptionStartInProgress) {
@@ -2366,16 +2370,7 @@ class IPCHandlers {
 
     ipcMain.handle("dictation-realtime-warmup", async (event, options = {}) => {
       try {
-        if (this._dictationStreaming) {
-          await this._dictationStreaming.disconnect().catch(() => {});
-          this._dictationStreaming = null;
-        }
-
-        const apiKey = await fetchRealtimeToken(event, { mode: options.mode });
-        const streaming = new OpenAIRealtimeStreaming();
-        this._setupDictationCallbacks(streaming, event);
-        await streaming.connect({ apiKey, model: options.model || "gpt-4o-mini-transcribe" });
-        this._dictationStreaming = streaming;
+        await connectDictationStreaming(event, options);
         return { success: true };
       } catch (err) {
         return { success: false, error: err.message };
@@ -2384,20 +2379,7 @@ class IPCHandlers {
 
     ipcMain.handle("dictation-realtime-start", async (event, options = {}) => {
       try {
-        if (this._dictationStreaming?.isConnected) {
-          return { success: true };
-        }
-
-        if (this._dictationStreaming) {
-          await this._dictationStreaming.disconnect().catch(() => {});
-          this._dictationStreaming = null;
-        }
-
-        const apiKey = await fetchRealtimeToken(event, { mode: options.mode });
-        const streaming = new OpenAIRealtimeStreaming();
-        this._setupDictationCallbacks(streaming, event);
-        await streaming.connect({ apiKey, model: options.model || "gpt-4o-mini-transcribe" });
-        this._dictationStreaming = streaming;
+        if (!this._dictationStreaming?.isConnected) await connectDictationStreaming(event, options);
         return { success: true };
       } catch (err) {
         return { success: false, error: err.message };

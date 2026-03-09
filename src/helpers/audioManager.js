@@ -13,6 +13,7 @@ import {
 
 const SHORT_CLIP_DURATION_SECONDS = 2.5;
 const REASONING_CACHE_TTL = 30000; // 30 seconds
+const REALTIME_MODELS = new Set(["gpt-4o-mini-transcribe", "gpt-4o-transcribe"]);
 
 const PLACEHOLDER_KEYS = {
   openai: "your_openai_api_key_here",
@@ -189,7 +190,7 @@ registerProcessor("pcm-streaming-processor", PCMStreamingProcessor);
 
   getStreamingProvider() {
     const { cloudTranscriptionModel } = getSettings();
-    if (cloudTranscriptionModel === "gpt-4o-mini-transcribe" || cloudTranscriptionModel === "gpt-4o-transcribe") {
+    if (REALTIME_MODELS.has(cloudTranscriptionModel)) {
       return STREAMING_PROVIDERS["openai-realtime"];
     }
     const providerName = this.sttConfig?.streamingProvider || "deepgram";
@@ -1933,7 +1934,7 @@ registerProcessor("pcm-streaming-processor", PCMStreamingProcessor);
     const s = getSettings();
     if (s.useLocalWhisper) return false;
 
-    if (s.cloudTranscriptionModel === "gpt-4o-mini-transcribe" || s.cloudTranscriptionModel === "gpt-4o-transcribe") {
+    if (REALTIME_MODELS.has(s.cloudTranscriptionModel)) {
       if (s.cloudTranscriptionMode === "byok") return !!s.openaiApiKey;
       if (s.cloudTranscriptionMode === "openwhispr") return !!(isSignedInOverride ?? s.isSignedIn);
       return false;

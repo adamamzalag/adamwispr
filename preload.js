@@ -473,10 +473,22 @@ contextBridge.exposeInMainWorld("electronAPI", {
   dictationRealtimeStart: (options) => ipcRenderer.invoke("dictation-realtime-start", options),
   dictationRealtimeSend: (buffer) => ipcRenderer.send("dictation-realtime-send", buffer),
   dictationRealtimeStop: () => ipcRenderer.invoke("dictation-realtime-stop"),
-  onDictationRealtimePartial: registerListener("dictation-realtime-partial", (cb) => (_e, d) => cb(d)),
-  onDictationRealtimeFinal: registerListener("dictation-realtime-final", (cb) => (_e, d) => cb(d)),
-  onDictationRealtimeError: registerListener("dictation-realtime-error", (cb) => (_e, d) => cb(d)),
-  onDictationRealtimeSessionEnd: registerListener("dictation-realtime-session-end", (cb) => (_e, d) => cb(d)),
+  onDictationRealtimePartial: registerListener(
+    "dictation-realtime-partial",
+    (callback) => (_event, data) => callback(data)
+  ),
+  onDictationRealtimeFinal: registerListener(
+    "dictation-realtime-final",
+    (callback) => (_event, data) => callback(data)
+  ),
+  onDictationRealtimeError: registerListener(
+    "dictation-realtime-error",
+    (callback) => (_event, data) => callback(data)
+  ),
+  onDictationRealtimeSessionEnd: registerListener(
+    "dictation-realtime-session-end",
+    (callback) => (_event, data) => callback(data)
+  ),
 
   // Usage limit events (for showing UpgradePrompt in ControlPanel)
   notifyLimitReached: (data) => ipcRenderer.send("limit-reached", data),

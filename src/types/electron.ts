@@ -1101,14 +1101,14 @@ declare global {
       onMeetingTranscriptionError?: (callback: (error: string) => void) => () => void;
 
       // Dictation realtime streaming
-      dictationRealtimeWarmup?(options: { model?: string; mode?: "byok" | "openwhispr" }): Promise<{ success: boolean; error?: string }>;
-      dictationRealtimeStart?(options: { model?: string; mode?: "byok" | "openwhispr" }): Promise<{ success: boolean; error?: string }>;
-      dictationRealtimeSend?(buffer: ArrayBuffer): void;
-      dictationRealtimeStop?(): Promise<{ success: boolean; text: string }>;
-      onDictationRealtimePartial?(callback: (data: { text: string }) => void): () => void;
-      onDictationRealtimeFinal?(callback: (data: { text: string }) => void): () => void;
-      onDictationRealtimeError?(callback: (data: { error: string }) => void): () => void;
-      onDictationRealtimeSessionEnd?(callback: (data: { text: string }) => void): () => void;
+      dictationRealtimeWarmup?: (options: { model?: string; mode?: "byok" | "openwhispr" }) => Promise<{ success: boolean; error?: string }>;
+      dictationRealtimeStart?: (options: { model?: string; mode?: "byok" | "openwhispr" }) => Promise<{ success: boolean; error?: string }>;
+      dictationRealtimeSend?: (buffer: ArrayBuffer) => void;
+      dictationRealtimeStop?: () => Promise<{ success: boolean; text: string }>;
+      onDictationRealtimePartial?: (callback: (data: { text: string }) => void) => () => void;
+      onDictationRealtimeFinal?: (callback: (data: { text: string }) => void) => () => void;
+      onDictationRealtimeError?: (callback: (data: { error: string }) => void) => () => void;
+      onDictationRealtimeSessionEnd?: (callback: (data: { text: string }) => void) => () => void;
 
       // Desktop audio capture
       getDesktopSources?: (types: string[]) => Promise<Array<{ id: string; name: string }>>;
