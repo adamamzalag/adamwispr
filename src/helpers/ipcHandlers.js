@@ -2261,9 +2261,9 @@ class IPCHandlers {
     };
 
     const setupDictationCallbacks = (streaming, event) => {
-      streaming.onPartialTranscript = (text) => event.sender.send("dictation-realtime-partial", { text });
-      streaming.onFinalTranscript = (text) => event.sender.send("dictation-realtime-final", { text });
-      streaming.onError = (err) => event.sender.send("dictation-realtime-error", { error: err.message });
+      streaming.onPartialTranscript = (text) => event.sender.send("dictation-realtime-partial", text);
+      streaming.onFinalTranscript = (text) => event.sender.send("dictation-realtime-final", text);
+      streaming.onError = (err) => event.sender.send("dictation-realtime-error", err.message);
       streaming.onSessionEnd = (data) => event.sender.send("dictation-realtime-session-end", data || {});
     };
 

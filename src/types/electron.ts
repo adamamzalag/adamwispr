@@ -1105,9 +1105,9 @@ declare global {
       dictationRealtimeStart?: (options: { model?: string; mode?: "byok" | "openwhispr" }) => Promise<{ success: boolean; error?: string }>;
       dictationRealtimeSend?: (buffer: ArrayBuffer) => void;
       dictationRealtimeStop?: () => Promise<{ success: boolean; text: string }>;
-      onDictationRealtimePartial?: (callback: (data: { text: string }) => void) => () => void;
-      onDictationRealtimeFinal?: (callback: (data: { text: string }) => void) => () => void;
-      onDictationRealtimeError?: (callback: (data: { error: string }) => void) => () => void;
+      onDictationRealtimePartial?: (callback: (text: string) => void) => () => void;
+      onDictationRealtimeFinal?: (callback: (text: string) => void) => () => void;
+      onDictationRealtimeError?: (callback: (error: string) => void) => () => void;
       onDictationRealtimeSessionEnd?: (callback: (data: { text: string }) => void) => () => void;
 
       // Desktop audio capture
