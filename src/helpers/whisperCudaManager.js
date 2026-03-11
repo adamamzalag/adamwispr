@@ -2,7 +2,6 @@ const fs = require("fs");
 const { promises: fsPromises } = require("fs");
 const path = require("path");
 const https = require("https");
-const { execFile } = require("child_process");
 const { app } = require("electron");
 const debugLogger = require("./debugLogger");
 const {
@@ -10,6 +9,9 @@ const {
   createDownloadSignal,
   checkDiskSpace,
   cleanupStaleDownloads,
+  extractArchive,
+  findFile,
+  findFiles,
 } = require("./downloadUtils");
 const { getSafeTempDir } = require("./safeTempDir");
 
@@ -59,6 +61,10 @@ class WhisperCudaManager {
 
   isDownloaded() {
     return !!this.getCudaBinaryPath();
+  }
+
+  isDownloading() {
+    return this._downloading;
   }
 
   async fetchReleaseInfo() {
@@ -135,12 +141,12 @@ class WhisperCudaManager {
       });
 
       await fsPromises.mkdir(extractDir, { recursive: true });
-      await this._extractZip(zipPath, extractDir);
+      await extractArchive(zipPath, extractDir);
 
       const binaryName = PLATFORM_BINARY_NAMES[process.platform];
       const companionPattern = COMPANION_PATTERNS[process.platform];
 
-      const binaryPath = this._findFile(extractDir, binaryName);
+      const binaryPath = await findFile(extractDir, binaryName);
       if (!binaryPath) {
         throw new Error(`Extraction completed but binary "${binaryName}" not found in archive`);
       }
@@ -151,7 +157,7 @@ class WhisperCudaManager {
         await fsPromises.chmod(dest, 0o755);
       }
 
-      const libs = this._findFiles(extractDir, companionPattern);
+      const libs = await findFiles(extractDir, companionPattern);
       for (const lib of libs) {
         const libDest = path.join(binDir, path.basename(lib));
         await fsPromises.copyFile(lib, libDest);
@@ -232,36 +238,6 @@ class WhisperCudaManager {
     };
   }
 
-  _findFile(dir, name, maxDepth = 5, depth = 0) {
-    if (depth >= maxDepth) return null;
-    const entries = fs.readdirSync(dir, { withFileTypes: true });
-    for (const entry of entries) {
-      const full = path.join(dir, entry.name);
-      if (entry.isDirectory()) {
-        const found = this._findFile(full, name, maxDepth, depth + 1);
-        if (found) return found;
-      } else if (entry.name === name) {
-        return full;
-      }
-    }
-    return null;
-  }
-
-  _findFiles(dir, pattern, maxDepth = 5, depth = 0) {
-    if (depth >= maxDepth) return [];
-    const results = [];
-    const entries = fs.readdirSync(dir, { withFileTypes: true });
-    for (const entry of entries) {
-      const full = path.join(dir, entry.name);
-      if (entry.isDirectory()) {
-        results.push(...this._findFiles(full, pattern, maxDepth, depth + 1));
-      } else if (pattern.test(entry.name)) {
-        results.push(full);
-      }
-    }
-    return results;
-  }
-
   _fetchJson(url) {
     return new Promise((resolve, reject) => {
       https
@@ -309,41 +285,6 @@ class WhisperCudaManager {
           this.destroy();
           reject(new Error("GitHub API request timed out"));
         });
-    });
-  }
-
-  _extractZip(zipPath, destDir) {
-    if (process.platform === "win32") {
-      return new Promise((resolve, reject) => {
-        // Use Windows built-in tar.exe (available since Windows 10 1803)
-        execFile("tar", ["-xf", zipPath, "-C", destDir], (error) => {
-          if (error) {
-            debugLogger.info("CUDA: tar extraction failed, trying PowerShell", { error: error.message });
-            // Fallback to PowerShell Expand-Archive
-            execFile(
-              "powershell",
-              [
-                "-NoProfile",
-                "-Command",
-                `Expand-Archive -Force -Path '${zipPath}' -DestinationPath '${destDir}'`,
-              ],
-              (psError) => {
-                if (psError) reject(new Error(`Zip extraction failed: ${psError.message}`));
-                else resolve();
-              }
-            );
-          } else {
-            resolve();
-          }
-        });
-      });
-    }
-
-    return new Promise((resolve, reject) => {
-      execFile("unzip", ["-o", zipPath, "-d", destDir], (error) => {
-        if (error) reject(new Error(`Zip extraction failed: ${error.message}`));
-        else resolve();
-      });
     });
   }
 }

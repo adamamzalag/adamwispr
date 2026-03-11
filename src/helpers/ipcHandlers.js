@@ -968,7 +968,7 @@ class IPCHandlers {
       }
       return {
         downloaded: this.whisperCudaManager.isDownloaded(),
-        downloading: this.whisperCudaManager._downloading,
+        downloading: this.whisperCudaManager.isDownloading(),
         path: this.whisperCudaManager.getCudaBinaryPath(),
         gpuInfo,
       };
@@ -1784,9 +1784,9 @@ class IPCHandlers {
           delete process.env.LLAMA_GPU_BACKEND;
           const modelManager = require("./modelManagerBridge").default;
           modelManager.serverManager.cachedServerBinaryPaths = null;
+          await this.environmentManager.saveAllKeysToEnvFile().catch(() => {});
           // Restart llama server so it picks up the Vulkan binary
           await modelManager.stopServer().catch(() => {});
-          this.environmentManager.saveAllKeysToEnvFile().catch(() => {});
         }
 
         return result;
