@@ -45,7 +45,7 @@ export default function HistoryView({
   onRetryTranscription,
 }: HistoryViewProps) {
   const { t } = useTranslation();
-  const textRetentionEnabled = useSettingsStore((s) => s.textRetentionEnabled);
+  const dataRetentionEnabled = useSettingsStore((s) => s.dataRetentionEnabled);
   const { events, isLoading: eventsLoading, isConnected } = useUpcomingEvents();
 
   const groupedHistory = useMemo(() => {
@@ -157,11 +157,11 @@ export default function HistoryView({
                 </span>
               </div>
             )}
-            {!textRetentionEnabled && (
+            {!dataRetentionEnabled && (
               <div className="mb-3 rounded-lg border border-amber-500/30 bg-amber-500/5 dark:bg-amber-500/10 px-3.5 py-2.5 flex items-center gap-2.5">
                 <span className="text-amber-600 dark:text-amber-400 shrink-0 text-sm">⊘</span>
                 <p className="text-xs text-amber-700 dark:text-amber-300/90 leading-relaxed">
-                  {t("controlPanel.history.textRetentionDisabled")}
+                  {t("controlPanel.history.dataRetentionDisabled")}
                 </p>
               </div>
             )}

@@ -227,7 +227,7 @@
       "couldNotDeleteDescription": "This transcription may have already been removed.",
       "couldNotDeleteDescriptionGeneric": "Something went wrong. Please try again.",
       "empty": "No transcriptions yet",
-      "textRetentionDisabled": "Text retention is off. Transcriptions and audio are not saved to history.",
+      "dataRetentionDisabled": "Data retention is off. Transcriptions and audio are not saved to history.",
       "press": "Press",
       "toStart": "to start",
       "dateGroups": {
@@ -1394,8 +1394,8 @@
       "audioStorageEmpty": "No audio files stored",
       "clearAllAudio": "Clear All Audio",
       "clearAllAudioConfirm": "Delete all stored audio files? This cannot be undone.",
-      "textRetention": "Text Retention",
-      "textRetentionDescription": "Store transcription text locally in your history. When disabled, transcriptions are pasted but not saved."
+      "dataRetention": "Data Retention",
+      "dataRetentionDescription": "Store transcriptions and audio locally in your history. When disabled, transcriptions are pasted but not saved."
     },
     "prompts": {
       "description": "View, customize, and test the unified system prompt that powers text cleanup and instruction detection",

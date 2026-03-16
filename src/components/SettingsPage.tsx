@@ -711,8 +711,8 @@ export default function SettingsPage({ activeSection = "general" }: SettingsPage
     setTelemetryEnabled,
     audioRetentionDays,
     setAudioRetentionDays,
-    textRetentionEnabled,
-    setTextRetentionEnabled,
+    dataRetentionEnabled,
+    setDataRetentionEnabled,
     customDictionary,
     setCustomDictionary,
   } = useSettings();
@@ -3249,22 +3249,17 @@ EOF`,
               </SettingsPanel>
             </div>
 
-            {/* Text Retention */}
+            {/* Data Retention */}
             <div className="border-t border-border/40 pt-6">
-              <SectionHeader
-                title={t("settingsPage.privacy.textRetention")}
-                description={t("settingsPage.privacy.textRetentionDescription")}
-              />
-
               <SettingsPanel>
                 <SettingsPanelRow>
                   <SettingsRow
-                    label={t("settingsPage.privacy.textRetention")}
-                    description={t("settingsPage.privacy.textRetentionDescription")}
+                    label={t("settingsPage.privacy.dataRetention")}
+                    description={t("settingsPage.privacy.dataRetentionDescription")}
                   >
                     <Toggle
-                      checked={textRetentionEnabled}
-                      onChange={setTextRetentionEnabled}
+                      checked={dataRetentionEnabled}
+                      onChange={setDataRetentionEnabled}
                     />
                   </SettingsRow>
                 </SettingsPanelRow>

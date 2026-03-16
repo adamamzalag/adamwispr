@@ -64,7 +64,7 @@ const BOOLEAN_SETTINGS = new Set([
   "isSignedIn",
   "agentEnabled",
   "keepTranscriptionInClipboard",
-  "textRetentionEnabled",
+  "dataRetentionEnabled",
 ]);
 
 const ARRAY_SETTINGS = new Set(["customDictionary", "gcalAccounts"]);
@@ -146,7 +146,7 @@ export interface SettingsState
   setCloudBackupEnabled: (value: boolean) => void;
   setTelemetryEnabled: (value: boolean) => void;
   setAudioRetentionDays: (days: number) => void;
-  setTextRetentionEnabled: (value: boolean) => void;
+  setDataRetentionEnabled: (value: boolean) => void;
   setAudioCuesEnabled: (value: boolean) => void;
   setPauseMediaOnDictation: (value: boolean) => void;
   setFloatingIconAutoHide: (enabled: boolean) => void;
@@ -281,7 +281,7 @@ export const useSettingsStore = create<SettingsState>()((set, get) => ({
     const parsed = parseInt(stored, 10);
     return isNaN(parsed) ? 30 : parsed;
   })(),
-  textRetentionEnabled: readBoolean("textRetentionEnabled", true),
+  dataRetentionEnabled: readBoolean("dataRetentionEnabled", true),
   audioCuesEnabled: readBoolean("audioCuesEnabled", true),
   pauseMediaOnDictation: readBoolean("pauseMediaOnDictation", false),
   floatingIconAutoHide: readBoolean("floatingIconAutoHide", false),
@@ -447,13 +447,13 @@ export const useSettingsStore = create<SettingsState>()((set, get) => ({
     if (isBrowser) localStorage.setItem("audioRetentionDays", String(days));
     set({ audioRetentionDays: days });
   },
-  setTextRetentionEnabled: (value: boolean) => {
-    if (isBrowser) localStorage.setItem("textRetentionEnabled", String(value));
-    set({ textRetentionEnabled: value });
+  setDataRetentionEnabled: (value: boolean) => {
+    if (isBrowser) localStorage.setItem("dataRetentionEnabled", String(value));
+    set({ dataRetentionEnabled: value });
     logger.info(
       value
-        ? "Text retention enabled — transcriptions and audio will be saved"
-        : "Text retention disabled — transcriptions and audio will not be saved",
+        ? "Data retention enabled — transcriptions and audio will be saved"
+        : "Data retention disabled — transcriptions and audio will not be saved",
       {},
       "settings"
     );

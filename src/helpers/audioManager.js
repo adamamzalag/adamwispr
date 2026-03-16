@@ -1926,8 +1926,8 @@ registerProcessor("pcm-streaming-processor", PCMStreamingProcessor);
   }
 
   async saveTranscription(text, rawText = null) {
-    if (!getSettings().textRetentionEnabled) {
-      logger.debug("Skipping transcription save — text retention disabled", {}, "audio");
+    if (!getSettings().dataRetentionEnabled) {
+      logger.debug("Skipping transcription save — data retention disabled", {}, "audio");
       this.lastAudioBlob = null;
       this.lastAudioMetadata = null;
       return true;
@@ -1960,8 +1960,8 @@ registerProcessor("pcm-streaming-processor", PCMStreamingProcessor);
   }
 
   async saveFailedTranscription(errorMessage, metadata = {}) {
-    if (!getSettings().textRetentionEnabled) {
-      logger.debug("Skipping failed transcription save — text retention disabled", {}, "audio");
+    if (!getSettings().dataRetentionEnabled) {
+      logger.debug("Skipping failed transcription save — data retention disabled", {}, "audio");
       this.lastAudioBlob = null;
       this.lastAudioMetadata = null;
       return;

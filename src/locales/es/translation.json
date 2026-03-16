@@ -227,7 +227,7 @@
       "couldNotDeleteDescription": "Puede que esta transcripción ya se haya eliminado.",
       "couldNotDeleteDescriptionGeneric": "Algo salió mal. Inténtalo de nuevo.",
       "empty": "Aún no hay transcripciones",
-      "textRetentionDisabled": "La retención de texto está desactivada. Las transcripciones y el audio no se guardan en el historial.",
+      "dataRetentionDisabled": "La retención de datos está desactivada. Las transcripciones y el audio no se guardan en el historial.",
       "press": "Pulsa",
       "toStart": "para empezar",
       "dateGroups": {
@@ -1324,8 +1324,8 @@
       "title": "Privacidad",
       "usageAnalytics": "Analíticas de uso",
       "usageAnalyticsDescription": "Ayúdanos a mejorar OpenWhispr compartiendo métricas de rendimiento anónimas. Nunca enviamos contenido de transcripciones, solo datos de tiempo y errores.",
-      "textRetention": "Retención de texto",
-      "textRetentionDescription": "Almacenar texto de transcripciones localmente en tu historial. Cuando está desactivado, las transcripciones se pegan pero no se guardan."
+      "dataRetention": "Retención de datos",
+      "dataRetentionDescription": "Almacenar transcripciones y audio localmente en tu historial. Cuando está desactivado, las transcripciones se pegan pero no se guardan."
     },
     "prompts": {
       "description": "Visualiza, personaliza y prueba el prompt de sistema unificado que impulsa la corrección de texto y la detección de instrucciones",
