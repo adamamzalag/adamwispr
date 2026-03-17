@@ -4192,15 +4192,18 @@ class IPCHandlers {
       return true;
     });
 
-    // --- OpenRouter Cleanup (stub — real implementation in Task 8) ---
+    const openRouter = require('./openRouterClient');
+
     ipcMain.handle('aw-run-cleanup', async (_, request) => {
-      // Stub: returns raw text until CleanupService is implemented
-      return { cleanedText: request.userMessage || '', status: 'skipped' };
+      const apiKey = _awGetApiKey();
+      if (!apiKey) return { cleanedText: '', status: 'error', errorMessage: 'No API key' };
+      return openRouter.runCleanup(apiKey, request);
     });
 
-    ipcMain.handle('aw-auto-categorize', async () => {
-      // Stub: returns null until CleanupService is implemented
-      return null;
+    ipcMain.handle('aw-auto-categorize', async (_, request) => {
+      const apiKey = _awGetApiKey();
+      if (!apiKey) return null;
+      return openRouter.autoCategorize(apiKey, request);
     });
 
     // Make _awGetApiKey available to other methods in this class
