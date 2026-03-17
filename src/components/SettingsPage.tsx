@@ -27,6 +27,8 @@ import {
   BookOpen,
   Copy,
   Trash2,
+  Eye,
+  EyeOff,
 } from "lucide-react";
 import { useAuth } from "../hooks/useAuth";
 import { NEON_AUTH_URL, signOut, deleteAccount } from "../lib/neonAuth";
@@ -79,6 +81,7 @@ import { cn } from "./lib/utils";
 import { startMigration, useMigration } from "../stores/noteStore.js";
 import { formatBytes } from "../utils/formatBytes";
 import { useSettingsStore } from "../stores/settingsStore";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "./ui/select";
 
 const formatAmount = (cents: number, currency: string) =>
   (cents / 100).toLocaleString(undefined, { style: "currency", currency });
@@ -95,7 +98,8 @@ export type SettingsSectionType =
   | "aiModels"
   | "agentConfig"
   | "prompts"
-  | "agentMode";
+  | "agentMode"
+  | "adamwispr";
 
 interface SettingsPageProps {
   activeSection?: SettingsSectionType;
@@ -113,6 +117,21 @@ const UI_LANGUAGE_OPTIONS: import("./ui/LanguageSelector").LanguageOption[] = [
   { value: "zh-CN", label: "简体中文", flag: "🇨🇳" },
   { value: "zh-TW", label: "繁體中文", flag: "🇹🇼" },
 ];
+
+const ADAMWISPR_MODEL_OPTIONS = [
+  {
+    value: "anthropic/claude-haiku-4-5-20251001",
+    label: "Claude Haiku 4.5",
+  },
+  {
+    value: "anthropic/claude-sonnet-4-6",
+    label: "Claude Sonnet 4.6",
+  },
+  {
+    value: "anthropic/claude-opus-4-6",
+    label: "Claude Opus 4.6",
+  },
+] as const;
 
 function SettingsPanel({
   children,
@@ -147,6 +166,190 @@ function SectionHeader({ title, description }: { title: string; description?: st
       {description && (
         <p className="text-xs text-muted-foreground/80 mt-0.5 leading-relaxed">{description}</p>
       )}
+    </div>
+  );
+}
+
+interface AdamWisprSectionProps {
+  awCleanupModel: string;
+  setAwCleanupModel: (value: string) => void;
+  initialHasApiKey: boolean;
+  toast: (opts: {
+    title: string;
+    description: string;
+    variant?: "default" | "destructive" | "success";
+    duration?: number;
+  }) => void;
+}
+
+function AdamWisprSection({
+  awCleanupModel,
+  setAwCleanupModel,
+  initialHasApiKey,
+  toast,
+}: AdamWisprSectionProps) {
+  const [apiKey, setApiKey] = useState("");
+  const [hasApiKey, setHasApiKey] = useState(initialHasApiKey);
+  const [showApiKey, setShowApiKey] = useState(false);
+  const [isSavingApiKey, setIsSavingApiKey] = useState(false);
+
+  const refreshApiKeyStatus = useCallback(async () => {
+    try {
+      const configured = !!(await window.electronAPI?.awHasApiKey?.());
+      setHasApiKey(configured);
+      useSettingsStore.setState({ awHasOpenRouterApiKey: configured });
+    } catch (error) {
+      logger.warn(
+        "Failed to refresh AdamWispr API key status",
+        { error: (error as Error).message },
+        "settings"
+      );
+    }
+  }, []);
+
+  useEffect(() => {
+    setHasApiKey(initialHasApiKey);
+  }, [initialHasApiKey]);
+
+  useEffect(() => {
+    refreshApiKeyStatus();
+  }, [refreshApiKeyStatus]);
+
+  const handleSaveApiKey = useCallback(async () => {
+    if (!window.electronAPI?.awSetApiKey || !window.electronAPI?.awHasApiKey) {
+      toast({
+        title: "AdamWispr API key unavailable",
+        description: "The Electron API for AdamWispr settings is not available.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsSavingApiKey(true);
+
+    try {
+      const trimmedKey = apiKey.trim();
+      const saved = await window.electronAPI.awSetApiKey(trimmedKey);
+
+      if (!saved) {
+        throw new Error("IPC call returned false");
+      }
+
+      const configured = !!(await window.electronAPI.awHasApiKey());
+      setHasApiKey(configured);
+      useSettingsStore.setState({ awHasOpenRouterApiKey: configured });
+      setApiKey("");
+      setShowApiKey(false);
+
+      toast({
+        title: configured ? "OpenRouter API key saved" : "OpenRouter API key cleared",
+        description: configured
+          ? "AdamWispr can now use OpenRouter for cleanup."
+          : "AdamWispr no longer has an OpenRouter API key configured.",
+        variant: "success",
+      });
+    } catch (error) {
+      logger.error("Failed to save AdamWispr API key", error, "settings");
+      toast({
+        title: "Couldn't save API key",
+        description: "Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSavingApiKey(false);
+    }
+  }, [apiKey, toast]);
+
+  return (
+    <div className="space-y-6">
+      <SectionHeader
+        title="AdamWispr"
+        description="Configure the minimal AdamWispr AI settings used for cleanup."
+      />
+
+      <div>
+        <SectionHeader
+          title="AI"
+          description="Set your OpenRouter key and choose the model AdamWispr uses for cleanup."
+        />
+
+        <SettingsPanel>
+          <SettingsPanelRow>
+            <SettingsRow
+              label="OpenRouter API key"
+              description="Stored through the app's secure Electron bridge, not in the renderer."
+              className="items-start"
+            >
+              <div className="w-80 max-w-full space-y-2">
+                <div className="relative">
+                  <Input
+                    type={showApiKey ? "text" : "password"}
+                    value={apiKey}
+                    onChange={(e) => setApiKey(e.target.value)}
+                    placeholder={hasApiKey ? "Enter a new key to replace the current one" : "sk-or-v1-..."}
+                    autoComplete="off"
+                    spellCheck={false}
+                    className="pr-10 font-mono text-xs"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowApiKey((value) => !value)}
+                    className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground/70 hover:text-foreground transition-colors"
+                    aria-label={showApiKey ? "Hide API key" : "Show API key"}
+                  >
+                    {showApiKey ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
+                <div className="flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <Badge variant={hasApiKey ? "success" : "outline"}>
+                      {hasApiKey ? "Configured" : "Not configured"}
+                    </Badge>
+                    <button
+                      type="button"
+                      onClick={() => refreshApiKeyStatus()}
+                      className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+                    >
+                      Refresh
+                    </button>
+                  </div>
+                  <Button
+                    size="sm"
+                    onClick={handleSaveApiKey}
+                    disabled={isSavingApiKey || (!apiKey.trim() && !hasApiKey)}
+                  >
+                    {isSavingApiKey ? "Saving..." : "Save"}
+                  </Button>
+                </div>
+              </div>
+            </SettingsRow>
+          </SettingsPanelRow>
+
+          <SettingsPanelRow>
+            <SettingsRow
+              label="Cleanup model"
+              description="Default: Claude Haiku 4.5. This controls AdamWispr's cleanup requests."
+            >
+              <Select value={awCleanupModel} onValueChange={setAwCleanupModel}>
+                <SelectTrigger className="h-8 w-64 text-xs rounded-lg px-2.5 [&>svg]:h-3 [&>svg]:w-3">
+                  <SelectValue placeholder="Select a model" />
+                </SelectTrigger>
+                <SelectContent>
+                  {ADAMWISPR_MODEL_OPTIONS.map((model) => (
+                    <SelectItem
+                      key={model.value}
+                      value={model.value}
+                      className="text-xs py-1.5 pl-2.5 pr-7 rounded-md"
+                    >
+                      {model.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </SettingsRow>
+          </SettingsPanelRow>
+        </SettingsPanel>
+      </div>
     </div>
   );
 }
@@ -719,6 +922,9 @@ export default function SettingsPage({ activeSection = "general" }: SettingsPage
 
   const meetingAudioDetection = useSettingsStore((s) => s.meetingAudioDetection);
   const setMeetingAudioDetection = useSettingsStore((s) => s.setMeetingAudioDetection);
+  const awCleanupModel = useSettingsStore((s) => s.awCleanupModel);
+  const awHasOpenRouterApiKey = useSettingsStore((s) => s.awHasOpenRouterApiKey);
+  const setAwCleanupModel = useSettingsStore((s) => s.setAwCleanupModel);
 
   const { t, i18n } = useTranslation();
   const { toast } = useToast();
@@ -3632,6 +3838,16 @@ EOF`,
 
       case "agentMode":
         return <AgentModeSettings />;
+
+      case "adamwispr":
+        return (
+          <AdamWisprSection
+            awCleanupModel={awCleanupModel}
+            setAwCleanupModel={setAwCleanupModel}
+            initialHasApiKey={awHasOpenRouterApiKey}
+            toast={toast}
+          />
+        );
 
       default:
         return null;

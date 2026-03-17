@@ -10,6 +10,7 @@ import {
   CreditCard,
   Shield,
   MessageSquare,
+  Sparkles,
 } from "lucide-react";
 import SidebarModal, { SidebarItem } from "./ui/SidebarModal";
 import SettingsPage, { SettingsSectionType } from "./SettingsPage";
@@ -85,6 +86,15 @@ export default function SettingsModal({ open, onOpenChange, initialSection }: Se
         icon: MessageSquare,
         description: t("settingsModal.sections.agentMode.description"),
         group: t("settingsModal.groups.speechAi"),
+      },
+      {
+        id: "adamwispr",
+        label: t("settingsModal.sections.adamwispr.label", { defaultValue: "AdamWispr" }),
+        icon: Sparkles,
+        description: t("settingsModal.sections.adamwispr.description", {
+          defaultValue: "OpenRouter key and cleanup model",
+        }),
+        group: t("settingsModal.groups.adamwispr", { defaultValue: "AdamWispr" }),
       },
       {
         id: "privacyData",
