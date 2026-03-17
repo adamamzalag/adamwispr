@@ -673,6 +673,10 @@ contextBridge.exposeInMainWorld("electronAPI", {
   // AdamWispr APIs
   // ============================================================
 
+  // Context Detection
+  awGetContext: () => ipcRenderer.invoke('aw-get-context'),
+  awGetBrowserUrl: (appName) => ipcRenderer.invoke('aw-get-browser-url', appName),
+
   // Secure API Key (key stays in main process)
   awHasApiKey: () => ipcRenderer.invoke('aw-has-api-key'),
   awSetApiKey: (key) => ipcRenderer.invoke('aw-set-api-key', key),

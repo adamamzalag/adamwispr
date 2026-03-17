@@ -4101,6 +4101,50 @@ class IPCHandlers {
     ipcMain.handle('aw-delete-denylist-entry', (_, id) =>
       db.awDeleteDenylistEntry(id));
 
+    // --- Context Detection (Swift helper + AppleScript) ---
+    const { exec, execFile } = require('child_process');
+    const fsAw = require('fs');
+    const util = require('util');
+    const execPromise = util.promisify(exec);
+    const execFilePromise = util.promisify(execFile);
+
+    // Path to compiled Swift context helper
+    const contextHelperDevPath = path.join(__dirname, '../../resources/bin/adamwispr-context-helper');
+    const contextHelperProdPath = path.join(process.resourcesPath || '', 'bin/adamwispr-context-helper');
+    const contextHelperPath = fsAw.existsSync(contextHelperProdPath) ? contextHelperProdPath : contextHelperDevPath;
+
+    // Native context via Swift helper (fast, reliable)
+    ipcMain.handle('aw-get-context', async () => {
+      try {
+        const { stdout } = await execFilePromise(contextHelperPath, ['get-context']);
+        return JSON.parse(stdout.trim());
+      } catch (err) {
+        debugLogger.error('Context helper failed', { error: err.message }, 'adamwispr');
+        return {
+          appName: 'Unknown', windowTitle: null, surroundingText: null,
+          isSecureField: false, fieldRole: null, fieldSubrole: null,
+        };
+      }
+    });
+
+    // Browser URL via AppleScript (Chrome/Safari only)
+    ipcMain.handle('aw-get-browser-url', async (_, appName) => {
+      try {
+        let script = '';
+        if (appName === 'Google Chrome') {
+          script = `osascript -e 'tell application "Google Chrome" to get URL of active tab of front window'`;
+        } else if (appName === 'Safari') {
+          script = `osascript -e 'tell application "Safari" to get URL of current tab of front window'`;
+        } else {
+          return null;
+        }
+        const { stdout } = await execPromise(script);
+        return stdout.trim();
+      } catch {
+        return null;
+      }
+    });
+
     // --- Permissions ---
     const { systemPreferences, safeStorage } = require('electron');
     ipcMain.handle('aw-check-permissions', () => ({
@@ -4116,15 +4160,15 @@ class IPCHandlers {
 
     function _awReadSecureStore() {
       try {
-        if (fs.existsSync(awKeyPath)) {
-          return JSON.parse(fs.readFileSync(awKeyPath, 'utf-8'));
+        if (fsAw.existsSync(awKeyPath)) {
+          return JSON.parse(fsAw.readFileSync(awKeyPath, 'utf-8'));
         }
       } catch {}
       return {};
     }
 
     function _awWriteSecureStore(data) {
-      fs.writeFileSync(awKeyPath, JSON.stringify(data), 'utf-8');
+      fsAw.writeFileSync(awKeyPath, JSON.stringify(data), 'utf-8');
     }
 
     function _awGetApiKey() {
