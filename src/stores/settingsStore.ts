@@ -565,7 +565,7 @@ export const useSettingsStore = create<SettingsState>()((set, get) => ({
 
   // --- AdamWispr Defaults & Setters ---
   awHasOpenRouterApiKey: false, // Set via IPC in initializeSettings()
-  awCleanupModel: readString("awCleanupModel", "anthropic/claude-haiku-4-5-20251001"),
+  awCleanupModel: readString("awCleanupModel", "anthropic/claude-haiku-4.5"),
   awCleanupTimeout: Number(readString("awCleanupTimeout", "3")),
   awAutoCategorizeMode: (readString("awAutoCategorizeMode", "auto") as "auto" | "ask"),
   awDefaultCategory: readString("awDefaultCategory", "Professional"),

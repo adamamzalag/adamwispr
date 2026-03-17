@@ -120,15 +120,15 @@ const UI_LANGUAGE_OPTIONS: import("./ui/LanguageSelector").LanguageOption[] = [
 
 const ADAMWISPR_MODEL_OPTIONS = [
   {
-    value: "anthropic/claude-haiku-4-5-20251001",
+    value: "anthropic/claude-haiku-4.5",
     label: "Claude Haiku 4.5",
   },
   {
-    value: "anthropic/claude-sonnet-4-6",
+    value: "anthropic/claude-sonnet-4.6",
     label: "Claude Sonnet 4.6",
   },
   {
-    value: "anthropic/claude-opus-4-6",
+    value: "anthropic/claude-opus-4.6",
     label: "Claude Opus 4.6",
   },
 ] as const;

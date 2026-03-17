@@ -1,7 +1,7 @@
 const MODEL_CAPABILITIES = {
-  'anthropic/claude-haiku-4-5-20251001': { supportsCaching: true },
-  'anthropic/claude-sonnet-4-6': { supportsCaching: true },
-  'anthropic/claude-opus-4-6': { supportsCaching: true },
+  'anthropic/claude-haiku-4.5': { supportsCaching: true },
+  'anthropic/claude-sonnet-4.6': { supportsCaching: true },
+  'anthropic/claude-opus-4.6': { supportsCaching: true },
 };
 
 let pendingController = null;

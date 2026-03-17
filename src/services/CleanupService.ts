@@ -29,9 +29,9 @@ export interface CleanupResult {
 
 // Model capability flags
 const MODEL_CAPABILITIES: Record<string, { supportsCaching: boolean }> = {
-  "anthropic/claude-haiku-4-5-20251001": { supportsCaching: true },
-  "anthropic/claude-sonnet-4-6": { supportsCaching: true },
-  "anthropic/claude-opus-4-6": { supportsCaching: true },
+  "anthropic/claude-haiku-4.5": { supportsCaching: true },
+  "anthropic/claude-sonnet-4.6": { supportsCaching: true },
+  "anthropic/claude-opus-4.6": { supportsCaching: true },
   "openai/gpt-4o-mini": { supportsCaching: false },
   "openai/gpt-4.1-mini": { supportsCaching: false },
 };
