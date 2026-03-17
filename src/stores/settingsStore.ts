@@ -65,11 +65,22 @@ const BOOLEAN_SETTINGS = new Set([
   "agentEnabled",
   "keepTranscriptionInClipboard",
   "dataRetentionEnabled",
+  "awAutoLearningEnabled",
+  "awClipboardPreservation",
+  "awTextFieldTracking",
 ]);
 
 const ARRAY_SETTINGS = new Set(["customDictionary", "gcalAccounts"]);
 
-const NUMERIC_SETTINGS = new Set(["audioRetentionDays"]);
+const NUMERIC_SETTINGS = new Set([
+  "audioRetentionDays",
+  "awCleanupTimeout",
+  "awLearningFrequencyMinutes",
+  "awLearningCorrectionThreshold",
+  "awDictationHistoryRetentionDays",
+  "awHoldThresholdMs",
+  "awTypingSpeedWpm",
+]);
 
 const LANGUAGE_MIGRATIONS: Record<string, string> = { zh: "zh-CN" };
 
@@ -169,6 +180,39 @@ export interface SettingsState
   updateReasoningSettings: (settings: Partial<ReasoningSettings>) => void;
   updateApiKeys: (keys: Partial<ApiKeySettings>) => void;
   updateAgentModeSettings: (settings: Partial<AgentModeSettings>) => void;
+
+  // --- AdamWispr Settings ---
+  awHasOpenRouterApiKey: boolean;
+  awCleanupModel: string;
+  awCleanupTimeout: number;
+  awAutoCategorizeMode: "auto" | "ask";
+  awDefaultCategory: string;
+  awStyleDescriptions: string;
+  awFormattingInstructions: string;
+  awAutoLearningEnabled: boolean;
+  awLearningFrequencyMinutes: number;
+  awLearningCorrectionThreshold: number;
+  awDictationHistoryRetentionDays: number;
+  awClipboardPreservation: boolean;
+  awTextFieldTracking: boolean;
+  awHoldThresholdMs: number;
+  awTypingSpeedWpm: number;
+
+  setAwOpenRouterApiKey: (key: string) => Promise<void>;
+  setAwCleanupModel: (value: string) => void;
+  setAwCleanupTimeout: (value: number) => void;
+  setAwAutoCategorizeMode: (value: "auto" | "ask") => void;
+  setAwDefaultCategory: (value: string) => void;
+  setAwStyleDescriptions: (value: string) => void;
+  setAwFormattingInstructions: (value: string) => void;
+  setAwAutoLearningEnabled: (value: boolean) => void;
+  setAwLearningFrequencyMinutes: (value: number) => void;
+  setAwLearningCorrectionThreshold: (value: number) => void;
+  setAwDictationHistoryRetentionDays: (value: number) => void;
+  setAwClipboardPreservation: (value: boolean) => void;
+  setAwTextFieldTracking: (value: boolean) => void;
+  setAwHoldThresholdMs: (value: number) => void;
+  setAwTypingSpeedWpm: (value: number) => void;
 }
 
 function createStringSetter(key: string) {
@@ -519,6 +563,64 @@ export const useSettingsStore = create<SettingsState>()((set, get) => ({
   setAgentEnabled: createBooleanSetter("agentEnabled"),
   setCloudAgentMode: createStringSetter("cloudAgentMode"),
 
+  // --- AdamWispr Defaults & Setters ---
+  awHasOpenRouterApiKey: false, // Set via IPC in initializeSettings()
+  awCleanupModel: readString("awCleanupModel", "anthropic/claude-haiku-4-5-20251001"),
+  awCleanupTimeout: Number(readString("awCleanupTimeout", "3")),
+  awAutoCategorizeMode: (readString("awAutoCategorizeMode", "auto") as "auto" | "ask"),
+  awDefaultCategory: readString("awDefaultCategory", "Professional"),
+  awStyleDescriptions: readString("awStyleDescriptions", JSON.stringify({
+    Professional: "Proper capitalization, full punctuation, complete sentences, formal tone",
+    Casual: "Relaxed capitalization, lighter punctuation, natural conversational tone",
+    Technical: "Clear and direct, preserve technical terms exactly, no over-formatting",
+  })),
+  awFormattingInstructions: readString("awFormattingInstructions", ""),
+  awAutoLearningEnabled: readBoolean("awAutoLearningEnabled", true),
+  awLearningFrequencyMinutes: Number(readString("awLearningFrequencyMinutes", "30")),
+  awLearningCorrectionThreshold: Number(readString("awLearningCorrectionThreshold", "10")),
+  awDictationHistoryRetentionDays: Number(readString("awDictationHistoryRetentionDays", "30")),
+  awClipboardPreservation: readBoolean("awClipboardPreservation", true),
+  awTextFieldTracking: readBoolean("awTextFieldTracking", true),
+  awHoldThresholdMs: Number(readString("awHoldThresholdMs", "300")),
+  awTypingSpeedWpm: Number(readString("awTypingSpeedWpm", "40")),
+
+  setAwOpenRouterApiKey: async (key: string) => {
+    const success = await window.electronAPI?.awSetApiKey?.(key);
+    useSettingsStore.setState({ awHasOpenRouterApiKey: !!key && !!success });
+  },
+  setAwCleanupModel: createStringSetter("awCleanupModel"),
+  setAwCleanupTimeout: (value: number) => {
+    if (isBrowser) localStorage.setItem("awCleanupTimeout", String(value));
+    useSettingsStore.setState({ awCleanupTimeout: value });
+  },
+  setAwAutoCategorizeMode: createStringSetter("awAutoCategorizeMode") as (value: "auto" | "ask") => void,
+  setAwDefaultCategory: createStringSetter("awDefaultCategory"),
+  setAwStyleDescriptions: createStringSetter("awStyleDescriptions"),
+  setAwFormattingInstructions: createStringSetter("awFormattingInstructions"),
+  setAwAutoLearningEnabled: createBooleanSetter("awAutoLearningEnabled"),
+  setAwLearningFrequencyMinutes: (value: number) => {
+    if (isBrowser) localStorage.setItem("awLearningFrequencyMinutes", String(value));
+    useSettingsStore.setState({ awLearningFrequencyMinutes: value });
+  },
+  setAwLearningCorrectionThreshold: (value: number) => {
+    if (isBrowser) localStorage.setItem("awLearningCorrectionThreshold", String(value));
+    useSettingsStore.setState({ awLearningCorrectionThreshold: value });
+  },
+  setAwDictationHistoryRetentionDays: (value: number) => {
+    if (isBrowser) localStorage.setItem("awDictationHistoryRetentionDays", String(value));
+    useSettingsStore.setState({ awDictationHistoryRetentionDays: value });
+  },
+  setAwClipboardPreservation: createBooleanSetter("awClipboardPreservation"),
+  setAwTextFieldTracking: createBooleanSetter("awTextFieldTracking"),
+  setAwHoldThresholdMs: (value: number) => {
+    if (isBrowser) localStorage.setItem("awHoldThresholdMs", String(value));
+    useSettingsStore.setState({ awHoldThresholdMs: value });
+  },
+  setAwTypingSpeedWpm: (value: number) => {
+    if (isBrowser) localStorage.setItem("awTypingSpeedWpm", String(value));
+    useSettingsStore.setState({ awTypingSpeedWpm: value });
+  },
+
   updateTranscriptionSettings: (settings: Partial<TranscriptionSettings>) => {
     const s = useSettingsStore.getState();
     if (settings.useLocalWhisper !== undefined) s.setUseLocalWhisper(settings.useLocalWhisper);
@@ -665,6 +767,18 @@ export async function initializeSettings(): Promise<void> {
     } catch (err) {
       logger.warn(
         "Failed to sync API keys on startup",
+        { error: (err as Error).message },
+        "settings"
+      );
+    }
+
+    // AdamWispr: Check if OpenRouter API key is configured (boolean only, key stays in main process)
+    try {
+      const hasKey = await window.electronAPI.awHasApiKey?.();
+      useSettingsStore.setState({ awHasOpenRouterApiKey: !!hasKey });
+    } catch (err) {
+      logger.warn(
+        "Failed to check AdamWispr API key on startup",
         { error: (err as Error).message },
         "settings"
       );

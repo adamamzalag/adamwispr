@@ -4102,12 +4102,65 @@ class IPCHandlers {
       db.awDeleteDenylistEntry(id));
 
     // --- Permissions ---
-    const { systemPreferences } = require('electron');
+    const { systemPreferences, safeStorage } = require('electron');
     ipcMain.handle('aw-check-permissions', () => ({
       accessibility: systemPreferences.isTrustedAccessibilityClient(false),
     }));
     ipcMain.handle('aw-request-accessibility', () =>
       systemPreferences.isTrustedAccessibilityClient(true));
+
+    // --- Secure API Key Storage ---
+    // Key is encrypted via safeStorage and stored in a local JSON file.
+    // The renderer NEVER receives the decrypted key.
+    const awKeyPath = path.join(app.getPath('userData'), 'adamwispr-secure.json');
+
+    function _awReadSecureStore() {
+      try {
+        if (fs.existsSync(awKeyPath)) {
+          return JSON.parse(fs.readFileSync(awKeyPath, 'utf-8'));
+        }
+      } catch {}
+      return {};
+    }
+
+    function _awWriteSecureStore(data) {
+      fs.writeFileSync(awKeyPath, JSON.stringify(data), 'utf-8');
+    }
+
+    function _awGetApiKey() {
+      const store = _awReadSecureStore();
+      if (!store.openRouterApiKey) return '';
+      try {
+        return safeStorage.decryptString(Buffer.from(store.openRouterApiKey, 'base64'));
+      } catch { return ''; }
+    }
+
+    ipcMain.handle('aw-has-api-key', () => !!_awGetApiKey());
+
+    ipcMain.handle('aw-set-api-key', (_, key) => {
+      const store = _awReadSecureStore();
+      if (!key) {
+        delete store.openRouterApiKey;
+      } else {
+        store.openRouterApiKey = safeStorage.encryptString(key).toString('base64');
+      }
+      _awWriteSecureStore(store);
+      return true;
+    });
+
+    // --- OpenRouter Cleanup (stub — real implementation in Task 8) ---
+    ipcMain.handle('aw-run-cleanup', async (_, request) => {
+      // Stub: returns raw text until CleanupService is implemented
+      return { cleanedText: request.userMessage || '', status: 'skipped' };
+    });
+
+    ipcMain.handle('aw-auto-categorize', async () => {
+      // Stub: returns null until CleanupService is implemented
+      return null;
+    });
+
+    // Make _awGetApiKey available to other methods in this class
+    this._awGetApiKey = _awGetApiKey;
   }
 
   broadcastToWindows(channel, payload) {
