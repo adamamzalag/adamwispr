@@ -48,16 +48,18 @@ Option C (cherry-pick). We don't auto-sync with upstream OpenWhispr. We monitor 
 
 ## Current Status (Mar 17, 2026)
 
-**ARCHITECTURAL PIVOT:** Discovered OpenWhispr's Intelligence pipeline already does AI cleanup. Revised plan to extend their system instead of building parallel one. Retiring CleanupService, openRouterClient, custom API key/model UI.
+**Phase 1 COMPLETE.** Integrated into OpenWhispr's Intelligence pipeline. Retired all duplicate code.
 
 **What's done:**
 - Fork, rename, 6 DB tables, settings, IPC, seed data
 - Swift context helper (app detection, surrounding text, secure field check)
 - ContextService fully operational
-- LearningService infrastructure ready
-- Pipeline wiring (processAndPaste in useAudioRecording.js) — working but will be refactored to use their pipeline
+- LearningService infrastructure ready (background learning call disabled pending rewire)
+- **Tasks 1-3 complete:** Hooked into ReasoningService/prompts.ts, context in system prompt, retired CleanupService/openRouterClient/adamwispr-prompts
+- **Model tested:** GPT-4o-mini via OpenRouter (primary), Claude Haiku 4.5 (fallback). GPT-5 Nano doesn't work for cleanup.
+- All context (app, URL, category, profile, corrections, styles) goes in system prompt. User message = raw transcript only.
 
-**What's next:** Phase 1 of revised plan — hook into ReasoningService/prompts.ts, retire duplicate code, wire context into their flow.
+**What's next:** Phase 2 — correction learning (Task 4), clipboard preservation (Task 5), hotkey tap/hold (Task 6), stats (Task 7), settings UI (Task 8).
 
 ## Development
 
