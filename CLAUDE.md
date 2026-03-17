@@ -38,6 +38,20 @@ Option C (cherry-pick). We don't auto-sync with upstream OpenWhispr. We monitor 
 7. Usage statistics
 8. Hotkey improvements (dual tap/hold, L/R modifiers)
 
+## Current Status (Mar 17, 2026)
+
+**Chunk 1 COMPLETE.** Foundation is in place:
+- App forked and renamed from OpenWhispr
+- 6 new SQLite tables with CRUD methods (dictation_history, corrections, user_profile, dictation_stats, app_categories, context_denylist)
+- 15 AdamWispr settings in Zustand store
+- Encrypted API key storage (main process, safeStorage)
+- 4 service files created (ContextService, CleanupService, LearningService, NativeBridge)
+- Formatting prompts (adamwispr-prompts.ts)
+- IPC handlers and preload bindings for all new APIs
+- Default app categories seeded (17 entries) + denylist (3 entries)
+
+**Next: Chunk 2** — Swift context helper, OpenRouter client, pipeline wiring. First user-testable feature comes after Task 8-9.
+
 ## Development
 
 ```bash

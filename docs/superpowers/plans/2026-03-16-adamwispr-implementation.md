@@ -12,6 +12,22 @@
 
 **Spec:** `docs/superpowers/specs/2026-03-16-adamwispr-design.md`
 
+## Progress
+
+| Chunk | Status | Notes |
+|-------|--------|-------|
+| 1: Foundation (Tasks 1-5) | **COMPLETE** | Fork, rename, DB tables, settings, services, seed data. 3 commits pushed. |
+| 2: Context & Cleanup (Tasks 6-9) | Not started | Swift helper, ContextService, CleanupService, pipeline wiring |
+| 3: Learning (Task 10) | Not started | Correction detection, background learning loop |
+| 4: Quality of Life (Tasks 11-13) | Not started | Clipboard, text field tracking, stats UI |
+| 5: Hotkeys & UI (Tasks 14-17) | Not started | Dual-mode, L/R modifiers, settings UI, pruning, testing |
+
+**Implementation notes (deviations from plan):**
+- Tasks 2 and 5 were combined — seed data added directly in database.js `_seedAdamWisprDefaults()` instead of separate main.js call
+- Task 4 service stubs were created as full implementations where possible (ContextService, CleanupService, LearningService already have real logic, not just TODOs)
+- IPC handlers organized in `setupAdamWisprHandlers()` method instead of inline in `setupHandlers()`
+- Secure API key storage uses a JSON file at `userData/adamwispr-secure.json` encrypted via `safeStorage` (no `electron-store` dependency needed)
+
 **Important codebase conventions (from OpenWhispr):**
 - React components (TSX/TS): `src/components/`
 - Node.js helpers (JS): `src/helpers/`
