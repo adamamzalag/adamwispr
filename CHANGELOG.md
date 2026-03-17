@@ -5,7 +5,30 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [Unreleased] — AdamWispr Fork
+
+### Added
+- Forked from OpenWhispr v1.6.4, renamed to AdamWispr
+- Swift context helper binary (app detection, surrounding text, secure field check via AXUIElement APIs)
+- ContextService — detects frontmost app, browser URL, surrounding text, style category
+- LearningService — correction tracking, background profile learning loop
+- NativeBridge — wrapper for native macOS APIs
+- 6 new SQLite tables (dictation_history, corrections, user_profile, dictation_stats, app_categories, context_denylist)
+- 17 default app category mappings + 3 denylist entries
+- AdamWispr settings section in Settings UI (API key, model selector)
+- Auto-download sherpa-onnx binary on `npm run dev`
+- OpenRouter integration for AI cleanup (working, tested)
+- Context-aware dictation pipeline (processAndPaste in useAudioRecording.js)
+
+### Changed
+- Architecture pivot: extending OpenWhispr's Intelligence pipeline instead of parallel system
+- Revised implementation plan (2026-03-17) — 11 tasks in 3 phases
+
+### To Do (Next Session)
+- Phase 1 Task 1: Hook context/personalization into OpenWhispr's prompts.ts
+- Phase 1 Task 2: Wire context into their ReasoningService flow
+- Phase 1 Task 3: Retire duplicate code (CleanupService, openRouterClient, custom API key UI)
+- Build settings UI for all AdamWispr features (categories, learning, styles, stats)
 
 ## [1.6.4] - 2026-03-15
 
