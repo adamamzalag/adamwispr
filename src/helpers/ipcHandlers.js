@@ -118,6 +118,7 @@ class IPCHandlers {
     this._setupTextEditMonitor();
     this._setupAudioCleanup();
     this.setupHandlers();
+    this.setupAdamWisprHandlers();
 
     if (this.whisperManager?.serverManager) {
       this.whisperManager.serverManager.on("cuda-fallback", () => {
@@ -4051,6 +4052,62 @@ class IPCHandlers {
         return [];
       }
     });
+  }
+
+  // ============================================================
+  // AdamWispr IPC Handlers
+  // ============================================================
+
+  setupAdamWisprHandlers() {
+    const db = this.databaseManager;
+
+    // --- Dictation History ---
+    ipcMain.handle('aw-save-dictation-history', (_, raw, cleaned, app, style, status) =>
+      db.awSaveDictationHistory(raw, cleaned, app, style, status));
+    ipcMain.handle('aw-get-dictation-history', (_, limit) =>
+      db.awGetDictationHistory(limit));
+
+    // --- Corrections ---
+    ipcMain.handle('aw-save-correction', (_, original, corrected, app) =>
+      db.awSaveCorrection(original, corrected, app));
+    ipcMain.handle('aw-get-corrections', (_, limit) =>
+      db.awGetCorrections(limit));
+    ipcMain.handle('aw-get-recent-corrections', (_, days) =>
+      db.awGetRecentCorrections(days));
+
+    // --- Profile ---
+    ipcMain.handle('aw-save-profile-entry', (_, key, value, source) =>
+      db.awSaveProfileEntry(key, value, source));
+    ipcMain.handle('aw-get-profile', () => db.awGetProfile());
+    ipcMain.handle('aw-delete-profile-entry', (_, id) =>
+      db.awDeleteProfileEntry(id));
+
+    // --- Stats ---
+    ipcMain.handle('aw-save-dictation-stats', (_, wordCount, duration, wpm, app) =>
+      db.awSaveDictationStats(wordCount, duration, wpm, app));
+    ipcMain.handle('aw-get-stats', () => db.awGetStats());
+
+    // --- App Categories ---
+    ipcMain.handle('aw-save-app-category', (_, app, url, cat, auto) =>
+      db.awSaveAppCategory(app, url, cat, auto));
+    ipcMain.handle('aw-get-app-categories', () => db.awGetAppCategories());
+    ipcMain.handle('aw-delete-app-category', (_, id) =>
+      db.awDeleteAppCategory(id));
+
+    // --- Denylist ---
+    ipcMain.handle('aw-save-denylist-entry', (_, app, url, reason) =>
+      db.awSaveDenylistEntry(app, url, reason));
+    ipcMain.handle('aw-get-denylist', () => db.awGetDenylist());
+    ipcMain.handle('aw-delete-denylist-entry', (_, id) =>
+      db.awDeleteDenylistEntry(id));
+
+    // --- Permissions ---
+    const { systemPreferences } = require('electron');
+    ipcMain.handle('aw-check-permissions', () => ({
+      accessibility: systemPreferences.isTrustedAccessibilityClient(false),
+    }));
+    ipcMain.handle('aw-request-accessibility', () =>
+      systemPreferences.isTrustedAccessibilityClient(true));
   }
 
   broadcastToWindows(channel, payload) {

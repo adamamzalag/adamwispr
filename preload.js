@@ -668,4 +668,58 @@ contextBridge.exposeInMainWorld("electronAPI", {
   updateNotificationReady: () => ipcRenderer.invoke("update-notification-ready"),
   updateNotificationRespond: (action) =>
     ipcRenderer.invoke("update-notification-respond", action),
+
+  // ============================================================
+  // AdamWispr APIs
+  // ============================================================
+
+  // Dictation History
+  awSaveDictationHistory: (raw, cleaned, app, style, status) =>
+    ipcRenderer.invoke('aw-save-dictation-history', raw, cleaned, app, style, status),
+  awGetDictationHistory: (limit) =>
+    ipcRenderer.invoke('aw-get-dictation-history', limit),
+
+  // Corrections
+  awSaveCorrection: (original, corrected, app) =>
+    ipcRenderer.invoke('aw-save-correction', original, corrected, app),
+  awGetCorrections: (limit) =>
+    ipcRenderer.invoke('aw-get-corrections', limit),
+  awGetRecentCorrections: (days) =>
+    ipcRenderer.invoke('aw-get-recent-corrections', days),
+
+  // Profile
+  awSaveProfileEntry: (key, value, source) =>
+    ipcRenderer.invoke('aw-save-profile-entry', key, value, source),
+  awGetProfile: () =>
+    ipcRenderer.invoke('aw-get-profile'),
+  awDeleteProfileEntry: (id) =>
+    ipcRenderer.invoke('aw-delete-profile-entry', id),
+
+  // Stats
+  awSaveDictationStats: (wordCount, duration, wpm, app) =>
+    ipcRenderer.invoke('aw-save-dictation-stats', wordCount, duration, wpm, app),
+  awGetStats: () =>
+    ipcRenderer.invoke('aw-get-stats'),
+
+  // App Categories
+  awSaveAppCategory: (app, url, cat, auto) =>
+    ipcRenderer.invoke('aw-save-app-category', app, url, cat, auto),
+  awGetAppCategories: () =>
+    ipcRenderer.invoke('aw-get-app-categories'),
+  awDeleteAppCategory: (id) =>
+    ipcRenderer.invoke('aw-delete-app-category', id),
+
+  // Denylist
+  awSaveDenylistEntry: (app, url, reason) =>
+    ipcRenderer.invoke('aw-save-denylist-entry', app, url, reason),
+  awGetDenylist: () =>
+    ipcRenderer.invoke('aw-get-denylist'),
+  awDeleteDenylistEntry: (id) =>
+    ipcRenderer.invoke('aw-delete-denylist-entry', id),
+
+  // Permissions
+  awCheckPermissions: () =>
+    ipcRenderer.invoke('aw-check-permissions'),
+  awRequestAccessibility: () =>
+    ipcRenderer.invoke('aw-request-accessibility'),
 });

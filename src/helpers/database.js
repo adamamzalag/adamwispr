@@ -339,6 +339,84 @@ class DatabaseManager {
         if (!err.message.includes("duplicate column")) throw err;
       }
 
+      // ============================================================
+      // AdamWispr tables
+      // ============================================================
+
+      this.db.exec(`
+        CREATE TABLE IF NOT EXISTS dictation_history (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          raw_transcript TEXT NOT NULL,
+          cleaned_text TEXT,
+          app_context TEXT,
+          style_category TEXT,
+          cleanup_status TEXT DEFAULT 'pending',
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+      `);
+
+      this.db.exec(`
+        CREATE TABLE IF NOT EXISTS corrections (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          original_word TEXT NOT NULL,
+          corrected_word TEXT NOT NULL,
+          app_context TEXT,
+          count INTEGER DEFAULT 1,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          UNIQUE(original_word, corrected_word)
+        )
+      `);
+
+      this.db.exec(`
+        CREATE TABLE IF NOT EXISTS user_profile (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          key TEXT NOT NULL,
+          value TEXT NOT NULL,
+          source TEXT DEFAULT 'auto',
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          UNIQUE(key, value)
+        )
+      `);
+
+      this.db.exec(`
+        CREATE TABLE IF NOT EXISTS dictation_stats (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          word_count INTEGER NOT NULL,
+          duration_seconds REAL NOT NULL,
+          wpm REAL NOT NULL,
+          app_context TEXT,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+      `);
+
+      // url_pattern uses '' (not NULL) for app-only entries — SQLite UNIQUE treats each NULL as unique
+      this.db.exec(`
+        CREATE TABLE IF NOT EXISTS app_categories (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          app_name TEXT,
+          url_pattern TEXT NOT NULL DEFAULT '',
+          category TEXT NOT NULL,
+          auto_assigned INTEGER DEFAULT 0,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+          UNIQUE(app_name, url_pattern)
+        )
+      `);
+
+      this.db.exec(`
+        CREATE TABLE IF NOT EXISTS context_denylist (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          app_name TEXT,
+          url_pattern TEXT NOT NULL DEFAULT '',
+          reason TEXT,
+          created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+        )
+      `);
+
+      // Seed default categories and denylist on first run
+      this._seedAdamWisprDefaults();
+
       return true;
     } catch (error) {
       debugLogger.error("Database initialization failed", { error: error.message }, "database");
@@ -1240,6 +1318,316 @@ class DatabaseManager {
       throw error;
     }
   }
+
+  // ============================================================
+  // AdamWispr: Seed defaults
+  // ============================================================
+
+  _seedAdamWisprDefaults() {
+    const existingCategories = this.db.prepare('SELECT COUNT(*) as count FROM app_categories').get();
+    if (existingCategories.count > 0) return;
+
+    const insertCat = this.db.prepare(
+      'INSERT OR IGNORE INTO app_categories (app_name, url_pattern, category) VALUES (?, ?, ?)'
+    );
+    // Professional
+    insertCat.run('Microsoft Teams', '', 'Professional');
+    insertCat.run('Google Chrome', 'mail.google.com', 'Professional');
+    insertCat.run('Google Chrome', 'monday.com', 'Professional');
+    insertCat.run('Google Chrome', 'docs.google.com', 'Professional');
+    insertCat.run('Google Chrome', 'sheets.google.com', 'Professional');
+    insertCat.run('Microsoft Word', '', 'Professional');
+    insertCat.run('Microsoft Outlook', '', 'Professional');
+    // Casual
+    insertCat.run('Google Chrome', 'web.whatsapp.com', 'Casual');
+    insertCat.run('Google Chrome', 'web.telegram.org', 'Casual');
+    insertCat.run('WhatsApp', '', 'Casual');
+    insertCat.run('Telegram', '', 'Casual');
+    // Technical
+    insertCat.run('Terminal', '', 'Technical');
+    insertCat.run('iTerm2', '', 'Technical');
+    insertCat.run('Claude', '', 'Technical');
+    insertCat.run('Google Chrome', 'claude.ai', 'Technical');
+    insertCat.run('Cursor', '', 'Technical');
+    insertCat.run('Visual Studio Code', '', 'Technical');
+
+    const insertDeny = this.db.prepare(
+      'INSERT OR IGNORE INTO context_denylist (app_name, url_pattern, reason) VALUES (?, ?, ?)'
+    );
+    insertDeny.run('1Password', '', 'Password manager');
+    insertDeny.run('Bitwarden', '', 'Password manager');
+    insertDeny.run('Keychain Access', '', 'System credentials');
+  }
+
+  // ============================================================
+  // AdamWispr: Dictation History
+  // ============================================================
+
+  awSaveDictationHistory(rawTranscript, cleanedText, appContext, styleCategory, cleanupStatus) {
+    try {
+      const stmt = this.db.prepare(
+        'INSERT INTO dictation_history (raw_transcript, cleaned_text, app_context, style_category, cleanup_status) VALUES (?, ?, ?, ?, ?)'
+      );
+      return stmt.run(rawTranscript, cleanedText, appContext, styleCategory, cleanupStatus);
+    } catch (error) {
+      debugLogger.error('Error saving dictation history', { error: error.message }, 'database');
+      return null;
+    }
+  }
+
+  awGetDictationHistory(limit = 50) {
+    try {
+      return this.db.prepare('SELECT * FROM dictation_history ORDER BY created_at DESC LIMIT ?').all(limit);
+    } catch (error) {
+      debugLogger.error('Error getting dictation history', { error: error.message }, 'database');
+      return [];
+    }
+  }
+
+  awPruneOldDictationHistory(retentionDays = 30) {
+    try {
+      return this.db.prepare(
+        "DELETE FROM dictation_history WHERE created_at < datetime('now', '-' || ? || ' days')"
+      ).run(retentionDays);
+    } catch (error) {
+      debugLogger.error('Error pruning dictation history', { error: error.message }, 'database');
+    }
+  }
+
+  // ============================================================
+  // AdamWispr: Corrections
+  // ============================================================
+
+  awSaveCorrection(originalWord, correctedWord, appContext) {
+    try {
+      const stmt = this.db.prepare(
+        `INSERT INTO corrections (original_word, corrected_word, app_context)
+         VALUES (?, ?, ?)
+         ON CONFLICT(original_word, corrected_word)
+         DO UPDATE SET count = count + 1, updated_at = CURRENT_TIMESTAMP`
+      );
+      return stmt.run(originalWord, correctedWord, appContext);
+    } catch (error) {
+      debugLogger.error('Error saving correction', { error: error.message }, 'database');
+      return null;
+    }
+  }
+
+  awGetCorrections(limit = 500) {
+    try {
+      return this.db.prepare(
+        'SELECT * FROM corrections ORDER BY count DESC, updated_at DESC LIMIT ?'
+      ).all(limit);
+    } catch (error) {
+      debugLogger.error('Error getting corrections', { error: error.message }, 'database');
+      return [];
+    }
+  }
+
+  awGetRecentCorrections(sinceDays = 7) {
+    try {
+      return this.db.prepare(
+        "SELECT * FROM corrections WHERE updated_at > datetime('now', '-' || ? || ' days') ORDER BY count DESC"
+      ).all(sinceDays);
+    } catch (error) {
+      debugLogger.error('Error getting recent corrections', { error: error.message }, 'database');
+      return [];
+    }
+  }
+
+  awPruneOldCorrections(retentionDays = 90, maxEntries = 10000) {
+    try {
+      this.db.prepare(
+        "DELETE FROM corrections WHERE created_at < datetime('now', '-' || ? || ' days')"
+      ).run(retentionDays);
+      this.db.prepare(
+        'DELETE FROM corrections WHERE id NOT IN (SELECT id FROM corrections ORDER BY count DESC LIMIT ?)'
+      ).run(maxEntries);
+    } catch (error) {
+      debugLogger.error('Error pruning corrections', { error: error.message }, 'database');
+    }
+  }
+
+  // ============================================================
+  // AdamWispr: User Profile
+  // ============================================================
+
+  awSaveProfileEntry(key, value, source = 'auto') {
+    try {
+      const stmt = this.db.prepare(
+        `INSERT INTO user_profile (key, value, source)
+         VALUES (?, ?, ?)
+         ON CONFLICT(key, value) DO UPDATE SET updated_at = CURRENT_TIMESTAMP`
+      );
+      return stmt.run(key, value, source);
+    } catch (error) {
+      debugLogger.error('Error saving profile entry', { error: error.message }, 'database');
+      return null;
+    }
+  }
+
+  awGetProfile() {
+    try {
+      return this.db.prepare('SELECT * FROM user_profile ORDER BY key').all();
+    } catch (error) {
+      debugLogger.error('Error getting profile', { error: error.message }, 'database');
+      return [];
+    }
+  }
+
+  awDeleteProfileEntry(id) {
+    try {
+      return this.db.prepare('DELETE FROM user_profile WHERE id = ?').run(id);
+    } catch (error) {
+      debugLogger.error('Error deleting profile entry', { error: error.message }, 'database');
+      return null;
+    }
+  }
+
+  // ============================================================
+  // AdamWispr: Dictation Stats
+  // ============================================================
+
+  awSaveDictationStats(wordCount, durationSeconds, wpm, appContext) {
+    try {
+      const stmt = this.db.prepare(
+        'INSERT INTO dictation_stats (word_count, duration_seconds, wpm, app_context) VALUES (?, ?, ?, ?)'
+      );
+      return stmt.run(wordCount, durationSeconds, wpm, appContext);
+    } catch (error) {
+      debugLogger.error('Error saving dictation stats', { error: error.message }, 'database');
+      return null;
+    }
+  }
+
+  awGetStats() {
+    try {
+      const allTime = this.db.prepare(
+        `SELECT COUNT(*) as total_dictations, SUM(word_count) as total_words,
+                AVG(wpm) as avg_wpm, SUM(duration_seconds) as total_duration
+         FROM dictation_stats`
+      ).get();
+
+      const today = this.db.prepare(
+        "SELECT COUNT(*) as dictations, SUM(word_count) as words FROM dictation_stats WHERE date(created_at) = date('now')"
+      ).get();
+
+      const thisWeek = this.db.prepare(
+        "SELECT COUNT(*) as dictations, SUM(word_count) as words FROM dictation_stats WHERE created_at > datetime('now', '-7 days')"
+      ).get();
+
+      const perApp = this.db.prepare(
+        'SELECT app_context, COUNT(*) as dictations, SUM(word_count) as words FROM dictation_stats GROUP BY app_context ORDER BY words DESC LIMIT 20'
+      ).all();
+
+      const streak = this._calculateStreak();
+
+      return { allTime, today, thisWeek, perApp, streak };
+    } catch (error) {
+      debugLogger.error('Error getting stats', { error: error.message }, 'database');
+      return { allTime: {}, today: {}, thisWeek: {}, perApp: [], streak: 0 };
+    }
+  }
+
+  _calculateStreak() {
+    try {
+      const days = this.db.prepare(
+        "SELECT DISTINCT date(created_at) as day FROM dictation_stats ORDER BY day DESC LIMIT 365"
+      ).all();
+
+      let streak = 0;
+      const today = new Date().toISOString().split('T')[0];
+      let expected = today;
+
+      for (const { day } of days) {
+        if (day === expected) {
+          streak++;
+          const d = new Date(expected);
+          d.setDate(d.getDate() - 1);
+          expected = d.toISOString().split('T')[0];
+        } else {
+          break;
+        }
+      }
+      return streak;
+    } catch {
+      return 0;
+    }
+  }
+
+  // ============================================================
+  // AdamWispr: App Categories
+  // ============================================================
+
+  awSaveAppCategory(appName, urlPattern, category, autoAssigned = false) {
+    try {
+      const stmt = this.db.prepare(
+        `INSERT INTO app_categories (app_name, url_pattern, category, auto_assigned)
+         VALUES (?, ?, ?, ?)
+         ON CONFLICT(app_name, url_pattern) DO UPDATE SET category = excluded.category, auto_assigned = excluded.auto_assigned`
+      );
+      return stmt.run(appName, urlPattern || '', category, autoAssigned ? 1 : 0);
+    } catch (error) {
+      debugLogger.error('Error saving app category', { error: error.message }, 'database');
+      return null;
+    }
+  }
+
+  awGetAppCategories() {
+    try {
+      return this.db.prepare('SELECT * FROM app_categories ORDER BY app_name').all();
+    } catch (error) {
+      debugLogger.error('Error getting app categories', { error: error.message }, 'database');
+      return [];
+    }
+  }
+
+  awDeleteAppCategory(id) {
+    try {
+      return this.db.prepare('DELETE FROM app_categories WHERE id = ?').run(id);
+    } catch (error) {
+      debugLogger.error('Error deleting app category', { error: error.message }, 'database');
+      return null;
+    }
+  }
+
+  // ============================================================
+  // AdamWispr: Context Denylist
+  // ============================================================
+
+  awSaveDenylistEntry(appName, urlPattern, reason) {
+    try {
+      const stmt = this.db.prepare(
+        'INSERT INTO context_denylist (app_name, url_pattern, reason) VALUES (?, ?, ?)'
+      );
+      return stmt.run(appName, urlPattern || '', reason);
+    } catch (error) {
+      debugLogger.error('Error saving denylist entry', { error: error.message }, 'database');
+      return null;
+    }
+  }
+
+  awGetDenylist() {
+    try {
+      return this.db.prepare('SELECT * FROM context_denylist ORDER BY app_name').all();
+    } catch (error) {
+      debugLogger.error('Error getting denylist', { error: error.message }, 'database');
+      return [];
+    }
+  }
+
+  awDeleteDenylistEntry(id) {
+    try {
+      return this.db.prepare('DELETE FROM context_denylist WHERE id = ?').run(id);
+    } catch (error) {
+      debugLogger.error('Error deleting denylist entry', { error: error.message }, 'database');
+      return null;
+    }
+  }
+
+  // ============================================================
+  // End AdamWispr methods
+  // ============================================================
 
   cleanup() {
     try {
