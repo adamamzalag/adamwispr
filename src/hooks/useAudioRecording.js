@@ -22,7 +22,7 @@ function parseStyleDescriptions(value) {
   }
 }
 
-async function autoCategorizeNewApp(settings, context, CleanupService) {
+async function autoCategorizeNewApp(settings, context) {
   if (settings.awAutoCategorizeMode !== "auto" || !context?.appName) {
     return;
   }
@@ -41,18 +41,12 @@ async function autoCategorizeNewApp(settings, context, CleanupService) {
     }
 
     const existingCategoryNames = [...new Set(categories.map((category) => category.category))];
-    const suggestedCategory = await CleanupService.autoCategorize(
-      context.appName,
-      context.url,
-      existingCategoryNames
-    );
+    if (existingCategoryNames.length === 0) {
+      return;
+    }
 
-    await window.electronAPI.awSaveAppCategory(
-      context.appName,
-      context.url || "",
-      suggestedCategory,
-      true
-    );
+    // TODO: Wire auto-categorize to use ReasoningService
+    // The LLM-backed category suggestion step is intentionally disabled for now.
   } catch (error) {
     logger.warn(
       "Failed to auto-categorize app after dictation",
@@ -63,12 +57,12 @@ async function autoCategorizeNewApp(settings, context, CleanupService) {
 }
 
 async function processAndPaste({
+  cleanedText,
   rawTranscript,
+  cleanupStatus,
   durationSeconds,
   pasteOptions,
   audioManager,
-  toast,
-  t,
 }) {
   const settings = getSettings();
   const defaultCategory = settings.awDefaultCategory || "Professional";
@@ -78,50 +72,20 @@ async function processAndPaste({
     url: undefined,
   };
 
-  let cleanedText = rawTranscript;
-  let cleanupStatus = "skipped";
-  let cleanupErrorMessage;
   let context = fallbackContext;
-  let CleanupService;
   let LearningService;
 
   try {
-    const [
-      { ContextService },
-      cleanupModule,
-      learningModule,
-    ] = await Promise.all([
+    const [{ ContextService }, learningModule] = await Promise.all([
       import("../services/ContextService"),
-      import("../services/CleanupService"),
       import("../services/LearningService"),
     ]);
 
-    CleanupService = cleanupModule.CleanupService;
     LearningService = learningModule.LearningService;
     context = await ContextService.getCurrentContext();
-
-    const [corrections, profile] = await Promise.all([
-      window.electronAPI.awGetCorrections(500),
-      window.electronAPI.awGetProfile(),
-    ]);
-
-    const cleanupResult = await CleanupService.cleanup({
-      rawTranscript,
-      context,
-      corrections,
-      profile,
-      styleDescriptions: parseStyleDescriptions(settings.awStyleDescriptions),
-      formattingInstructions: settings.awFormattingInstructions || "",
-    });
-
-    cleanedText = cleanupResult.cleanedText || rawTranscript;
-    cleanupStatus = cleanupResult.status;
-    cleanupErrorMessage = cleanupResult.errorMessage;
   } catch (error) {
-    cleanupStatus = "error";
-    cleanupErrorMessage = error.message;
     logger.warn(
-      "AdamWispr cleanup pipeline failed, falling back to raw transcript",
+      "AdamWispr context lookup failed during post-processing",
       { error: error.message },
       "dictation"
     );
@@ -161,26 +125,8 @@ async function processAndPaste({
     });
   }
 
-  if (pasted && CleanupService) {
-    void autoCategorizeNewApp(settings, context, CleanupService);
-  }
-
-  if (settings.awHasOpenRouterApiKey && cleanupStatus === "timeout") {
-    toast({
-      title: t("hooks.audioRecording.cleanupTimeoutTitle", "Cleanup timed out"),
-      description: t("hooks.audioRecording.cleanupTimeoutDescription", "Raw text was pasted."),
-      variant: "default",
-    });
-  } else if (
-    settings.awHasOpenRouterApiKey &&
-    cleanupStatus === "error" &&
-    cleanupErrorMessage
-  ) {
-    toast({
-      title: t("hooks.audioRecording.cleanupFailedTitle", "Cleanup failed"),
-      description: cleanupErrorMessage,
-      variant: "default",
-    });
+  if (pasted) {
+    void autoCategorizeNewApp(settings, context);
   }
 
   return {
@@ -258,6 +204,54 @@ export const useAudioRecording = (toast, options = {}) => {
   useEffect(() => {
     audioManagerRef.current = new AudioManager();
 
+    audioManagerRef.current.setAdamWisprContextProvider(async () => {
+      const settings = getSettings();
+      const hasAdamWisprSettings =
+        !!settings.awDefaultCategory ||
+        !!settings.awFormattingInstructions ||
+        !!settings.awStyleDescriptions ||
+        settings.awAutoLearningEnabled ||
+        settings.awTextFieldTracking ||
+        settings.awAutoCategorizeMode === "auto";
+
+      if (!hasAdamWisprSettings) {
+        return null;
+      }
+
+      try {
+        const [{ ContextService }, correctionRows, profile] = await Promise.all([
+          import("../services/ContextService"),
+          window.electronAPI.awGetCorrections(500),
+          window.electronAPI.awGetProfile(),
+        ]);
+
+        const context = await ContextService.getCurrentContext();
+
+        return {
+          profile,
+          corrections: (correctionRows || []).map((entry) => ({
+            original: entry.original_word,
+            corrected: entry.corrected_word,
+            frequency: entry.count,
+          })),
+          styleDescriptions: parseStyleDescriptions(settings.awStyleDescriptions),
+          formattingInstructions: settings.awFormattingInstructions || "",
+          appName: context?.appName,
+          url: context?.url,
+          pageTitle: context?.pageTitle,
+          surroundingText: context?.surroundingText,
+          category: context?.category || settings.awDefaultCategory || "Professional",
+        };
+      } catch (error) {
+        logger.warn(
+          "AdamWispr context collection failed",
+          { error: error.message },
+          "dictation"
+        );
+        return null;
+      }
+    });
+
     audioManagerRef.current.setCallbacks({
       onStateChange: ({ isRecording, isProcessing, isStreaming }) => {
         setIsRecording(isRecording);
@@ -297,16 +291,18 @@ export const useAudioRecording = (toast, options = {}) => {
           const isStreaming = result.source?.includes("streaming");
           const { keepTranscriptionInClipboard } = getSettings();
           const rawTranscript = result.rawText?.trim() || result.text;
+          const cleanedText = result.text?.trim() || rawTranscript;
+          const cleanupStatus = cleanedText !== rawTranscript ? "success" : "skipped";
           const durationSeconds = audioManagerRef.current?.lastAudioMetadata?.durationMs
             ? audioManagerRef.current.lastAudioMetadata.durationMs / 1000
             : 0;
           const processingStart = performance.now();
           const processedResult = await processAndPaste({
+            cleanedText,
             rawTranscript,
+            cleanupStatus,
             durationSeconds,
             audioManager: audioManagerRef.current,
-            toast,
-            t,
             pasteOptions: {
               ...(isStreaming ? { fromStreaming: true } : {}),
               restoreClipboard: !keepTranscriptionInClipboard,

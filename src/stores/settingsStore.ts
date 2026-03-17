@@ -74,7 +74,6 @@ const ARRAY_SETTINGS = new Set(["customDictionary", "gcalAccounts"]);
 
 const NUMERIC_SETTINGS = new Set([
   "audioRetentionDays",
-  "awCleanupTimeout",
   "awLearningFrequencyMinutes",
   "awLearningCorrectionThreshold",
   "awDictationHistoryRetentionDays",
@@ -182,9 +181,6 @@ export interface SettingsState
   updateAgentModeSettings: (settings: Partial<AgentModeSettings>) => void;
 
   // --- AdamWispr Settings ---
-  awHasOpenRouterApiKey: boolean;
-  awCleanupModel: string;
-  awCleanupTimeout: number;
   awAutoCategorizeMode: "auto" | "ask";
   awDefaultCategory: string;
   awStyleDescriptions: string;
@@ -198,9 +194,6 @@ export interface SettingsState
   awHoldThresholdMs: number;
   awTypingSpeedWpm: number;
 
-  setAwOpenRouterApiKey: (key: string) => Promise<void>;
-  setAwCleanupModel: (value: string) => void;
-  setAwCleanupTimeout: (value: number) => void;
   setAwAutoCategorizeMode: (value: "auto" | "ask") => void;
   setAwDefaultCategory: (value: string) => void;
   setAwStyleDescriptions: (value: string) => void;
@@ -564,9 +557,6 @@ export const useSettingsStore = create<SettingsState>()((set, get) => ({
   setCloudAgentMode: createStringSetter("cloudAgentMode"),
 
   // --- AdamWispr Defaults & Setters ---
-  awHasOpenRouterApiKey: false, // Set via IPC in initializeSettings()
-  awCleanupModel: readString("awCleanupModel", "anthropic/claude-haiku-4.5"),
-  awCleanupTimeout: Number(readString("awCleanupTimeout", "3")),
   awAutoCategorizeMode: (readString("awAutoCategorizeMode", "auto") as "auto" | "ask"),
   awDefaultCategory: readString("awDefaultCategory", "Professional"),
   awStyleDescriptions: readString("awStyleDescriptions", JSON.stringify({
@@ -584,15 +574,6 @@ export const useSettingsStore = create<SettingsState>()((set, get) => ({
   awHoldThresholdMs: Number(readString("awHoldThresholdMs", "300")),
   awTypingSpeedWpm: Number(readString("awTypingSpeedWpm", "40")),
 
-  setAwOpenRouterApiKey: async (key: string) => {
-    const success = await window.electronAPI?.awSetApiKey?.(key);
-    useSettingsStore.setState({ awHasOpenRouterApiKey: !!key && !!success });
-  },
-  setAwCleanupModel: createStringSetter("awCleanupModel"),
-  setAwCleanupTimeout: (value: number) => {
-    if (isBrowser) localStorage.setItem("awCleanupTimeout", String(value));
-    useSettingsStore.setState({ awCleanupTimeout: value });
-  },
   setAwAutoCategorizeMode: createStringSetter("awAutoCategorizeMode") as (value: "auto" | "ask") => void,
   setAwDefaultCategory: createStringSetter("awDefaultCategory"),
   setAwStyleDescriptions: createStringSetter("awStyleDescriptions"),
@@ -767,18 +748,6 @@ export async function initializeSettings(): Promise<void> {
     } catch (err) {
       logger.warn(
         "Failed to sync API keys on startup",
-        { error: (err as Error).message },
-        "settings"
-      );
-    }
-
-    // AdamWispr: Check if OpenRouter API key is configured (boolean only, key stays in main process)
-    try {
-      const hasKey = await window.electronAPI.awHasApiKey?.();
-      useSettingsStore.setState({ awHasOpenRouterApiKey: !!hasKey });
-    } catch (err) {
-      logger.warn(
-        "Failed to check AdamWispr API key on startup",
         { error: (err as Error).message },
         "settings"
       );

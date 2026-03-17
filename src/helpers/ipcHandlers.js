@@ -4146,68 +4146,13 @@ class IPCHandlers {
     });
 
     // --- Permissions ---
-    const { systemPreferences, safeStorage } = require('electron');
+    const { systemPreferences } = require('electron');
     ipcMain.handle('aw-check-permissions', () => ({
       accessibility: systemPreferences.isTrustedAccessibilityClient(false),
     }));
     ipcMain.handle('aw-request-accessibility', () =>
       systemPreferences.isTrustedAccessibilityClient(true));
 
-    // --- Secure API Key Storage ---
-    // Key is encrypted via safeStorage and stored in a local JSON file.
-    // The renderer NEVER receives the decrypted key.
-    const awKeyPath = path.join(app.getPath('userData'), 'adamwispr-secure.json');
-
-    function _awReadSecureStore() {
-      try {
-        if (fsAw.existsSync(awKeyPath)) {
-          return JSON.parse(fsAw.readFileSync(awKeyPath, 'utf-8'));
-        }
-      } catch {}
-      return {};
-    }
-
-    function _awWriteSecureStore(data) {
-      fsAw.writeFileSync(awKeyPath, JSON.stringify(data), 'utf-8');
-    }
-
-    function _awGetApiKey() {
-      const store = _awReadSecureStore();
-      if (!store.openRouterApiKey) return '';
-      try {
-        return safeStorage.decryptString(Buffer.from(store.openRouterApiKey, 'base64'));
-      } catch { return ''; }
-    }
-
-    ipcMain.handle('aw-has-api-key', () => !!_awGetApiKey());
-
-    ipcMain.handle('aw-set-api-key', (_, key) => {
-      const store = _awReadSecureStore();
-      if (!key) {
-        delete store.openRouterApiKey;
-      } else {
-        store.openRouterApiKey = safeStorage.encryptString(key).toString('base64');
-      }
-      _awWriteSecureStore(store);
-      return true;
-    });
-
-    const openRouter = require('./openRouterClient');
-
-    ipcMain.handle('aw-run-cleanup', async (_, request) => {
-      const apiKey = _awGetApiKey();
-      if (!apiKey) return { cleanedText: '', status: 'error', errorMessage: 'No API key' };
-      return openRouter.runCleanup(apiKey, request);
-    });
-
-    ipcMain.handle('aw-auto-categorize', async (_, request) => {
-      const apiKey = _awGetApiKey();
-      if (!apiKey) return null;
-      return openRouter.autoCategorize(apiKey, request);
-    });
-
-    // Make _awGetApiKey available to other methods in this class
-    this._awGetApiKey = _awGetApiKey;
   }
 
   broadcastToWindows(channel, payload) {

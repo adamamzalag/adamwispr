@@ -292,24 +292,6 @@ declare global {
         fieldSubrole: string | null;
       }>;
       awGetBrowserUrl: (appName: string) => Promise<string | null>;
-      awHasApiKey?: () => Promise<boolean>;
-      awSetApiKey?: (key: string) => Promise<boolean>;
-      awRunCleanup: (request: {
-        systemPrompt: string;
-        userMessage: string;
-        model: string;
-        timeoutMs: number;
-      }) => Promise<{
-        cleanedText: string;
-        status: "success" | "timeout" | "error" | "skipped";
-        errorMessage?: string;
-      }>;
-      awAutoCategorize: (request: {
-        appName: string;
-        url?: string;
-        categories: string[];
-        model: string;
-      }) => Promise<string>;
       awSaveDictationHistory: (
         raw: string,
         cleaned: string,

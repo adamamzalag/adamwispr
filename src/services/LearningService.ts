@@ -161,9 +161,8 @@ export class LearningService {
     try {
       const { useSettingsStore } = await import("../stores/settingsStore");
       const settings = useSettingsStore.getState();
-      const model = settings.awCleanupModel;
 
-      if (!settings.awHasOpenRouterApiKey || !settings.awAutoLearningEnabled)
+      if (!settings.awAutoLearningEnabled)
         return;
 
       const recentCorrections =
@@ -173,38 +172,8 @@ export class LearningService {
 
       if (recentCorrections.length === 0 && recentHistory.length === 0) return;
 
-      const systemPrompt = `You analyze dictation patterns to build a user profile. Extract facts about the user: names they mention, companies, tools, topics they discuss, communication style patterns. Output as JSON array: [{"key": "category", "value": "fact"}]. Categories: company, role, common_term, person, tool, topic, style_preference. Only output new facts not already in the existing profile.`;
-
-      const userMessage = `Existing profile:\n${JSON.stringify(currentProfile.map((p: { key: string; value: string }) => ({ key: p.key, value: p.value })))}\n\nRecent corrections:\n${JSON.stringify(recentCorrections.map((c: { original_word: string; corrected_word: string; count: number }) => ({ from: c.original_word, to: c.corrected_word, count: c.count })))}\n\nRecent dictation samples:\n${recentHistory.slice(0, 20).map((h: { cleaned_text?: string; raw_transcript: string }) => h.cleaned_text || h.raw_transcript).join("\n---\n")}`;
-
-      const result = await window.electronAPI.awRunCleanup({
-        systemPrompt,
-        userMessage,
-        model,
-        timeoutMs: 30000,
-      });
-
-      const content =
-        result.status === "success" ? result.cleanedText : null;
-
-      if (content) {
-        try {
-          const facts = JSON.parse(content);
-          if (Array.isArray(facts)) {
-            for (const { key, value } of facts) {
-              if (key && value) {
-                await window.electronAPI.awSaveProfileEntry(
-                  key,
-                  value,
-                  "auto"
-                );
-              }
-            }
-          }
-        } catch {
-          // JSON parse failed — skip
-        }
-      }
+      // TODO: Wire learning cycle to use ReasoningService instead of retired awRunCleanup
+      // The LLM-backed profile extraction step is intentionally disabled for now.
 
       // Promote high-count corrections to profile
       for (const correction of recentCorrections) {

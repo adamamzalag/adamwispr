@@ -8,6 +8,18 @@ export const FULL_PROMPT = promptData.FULL_PROMPT;
 /** @deprecated Use FULL_PROMPT — kept for PromptStudio compat */
 export const UNIFIED_SYSTEM_PROMPT = promptData.FULL_PROMPT;
 
+export interface AdamWisprPromptData {
+  profile?: Array<{ key: string; value: string }>;
+  corrections?: Array<{ original: string; corrected: string; frequency: number }>;
+  styleDescriptions?: Record<string, string>;
+  formattingInstructions?: string;
+  appName?: string;
+  url?: string;
+  pageTitle?: string;
+  surroundingText?: string;
+  category?: string;
+}
+
 function getPromptBundle(uiLanguage?: string): PromptBundle {
   const locale = normalizeUiLanguage(uiLanguage || "en");
   const t = i18n.getFixedT(locale, "prompts");
@@ -96,7 +108,8 @@ export function getSystemPrompt(
   customDictionary?: string[],
   language?: string,
   transcript?: string,
-  uiLanguage?: string
+  uiLanguage?: string,
+  adamWisprData?: AdamWisprPromptData
 ): string {
   const name = agentName?.trim() || "Assistant";
   const prompts = getPromptBundle(uiLanguage);
@@ -131,7 +144,90 @@ export function getSystemPrompt(
     prompt += prompts.dictionarySuffix + customDictionary.join(", ");
   }
 
+  const adamWisprAddendum = buildAdamWisprSystemAddendum(adamWisprData);
+  if (adamWisprAddendum) {
+    prompt += `\n\n${adamWisprAddendum}`;
+  }
+
   return prompt;
+}
+
+export function buildAdamWisprSystemAddendum(data?: AdamWisprPromptData): string {
+  if (!data) return "";
+
+  const sections: string[] = [];
+
+  const profile = data.profile?.filter(
+    (entry) => entry?.key?.trim() && entry?.value?.trim()
+  );
+  if (profile && profile.length > 0) {
+    sections.push(
+      [
+        "About the user:",
+        ...profile.map((entry) => `- ${entry.key.trim()}: ${entry.value.trim()}`),
+      ].join("\n")
+    );
+  }
+
+  const corrections = data.corrections?.filter(
+    (entry) => entry?.original?.trim() && entry?.corrected?.trim()
+  );
+  if (corrections && corrections.length > 0) {
+    sections.push(
+      [
+        "When you see these words, correct them:",
+        ...corrections.map(
+          (entry) =>
+            `- ${entry.original.trim()} -> ${entry.corrected.trim()}${
+              Number.isFinite(entry.frequency) ? ` (frequency: ${entry.frequency})` : ""
+            }`
+        ),
+      ].join("\n")
+    );
+  }
+
+  const styleDescriptions = Object.entries(data.styleDescriptions ?? {}).filter(
+    ([category, description]) => category.trim() && description.trim()
+  );
+  if (styleDescriptions.length > 0) {
+    sections.push(
+      [
+        "Style guides by category:",
+        ...styleDescriptions.map(
+          ([category, description]) => `- ${category.trim()}: ${description.trim()}`
+        ),
+      ].join("\n")
+    );
+  }
+
+  const formattingInstructions = data.formattingInstructions?.trim();
+  if (formattingInstructions) {
+    sections.push(`Formatting instructions:\n${formattingInstructions}`);
+  }
+
+  const surroundingText = isUsefulSurroundingText(data.surroundingText);
+  const contextLines = [
+    data.appName?.trim() ? `- App: ${data.appName.trim()}` : null,
+    data.category?.trim() ? `- Category: ${data.category.trim()}` : null,
+    data.url?.trim() ? `- URL: ${data.url.trim()}` : null,
+    data.pageTitle?.trim() ? `- Page title: ${data.pageTitle.trim()}` : null,
+    surroundingText ? `- Surrounding text: ${surroundingText}` : null,
+  ].filter(Boolean);
+  if (contextLines.length > 0) {
+    sections.push(["Current dictation context:", ...contextLines].join("\n"));
+  }
+
+  return sections.join("\n\n");
+}
+
+export function isUsefulSurroundingText(text: string | undefined): string | null {
+  if (!text) return null;
+  const cleaned = text.trim();
+  if (!cleaned) return null;
+  // Filter out text that's mostly non-alphanumeric (terminal UI, box-drawing chars, etc.)
+  const alphanumCount = (cleaned.match(/[a-zA-Z0-9]/g) || []).length;
+  if (alphanumCount / cleaned.length < 0.3) return null;
+  return cleaned.slice(0, 300);
 }
 
 export function getWordBoost(customDictionary?: string[]): string[] {

@@ -1,5 +1,6 @@
 import ReasoningService from "../services/ReasoningService";
 import { API_ENDPOINTS, buildApiUrl, normalizeBaseUrl } from "../config/constants";
+import { getSystemPrompt } from "../config/prompts";
 import logger from "../utils/logger";
 import { isBuiltInMicrophone } from "../utils/audioDeviceUtils";
 import { getSystemAudioStream, stopSystemAudioStream } from "../utils/systemAudio";
@@ -112,6 +113,7 @@ class AudioManager {
     this.sttConfig = null;
     this.lastAudioBlob = null;
     this.lastAudioMetadata = null;
+    this.adamWisprContextProvider = null;
 
     // System audio capture
     this.systemAudioEnabled = false;
@@ -186,6 +188,10 @@ registerProcessor("pcm-streaming-processor", PCMStreamingProcessor);
 
   setSkipReasoning(skip) {
     this.skipReasoning = skip;
+  }
+
+  setAdamWisprContextProvider(provider) {
+    this.adamWisprContextProvider = provider;
   }
 
   setContext(context) {
@@ -931,17 +937,57 @@ registerProcessor("pcm-streaming-processor", PCMStreamingProcessor);
     return new Blob([arrayBuffer], { type: "audio/wav" });
   }
 
-  async processWithReasoningModel(text, model, agentName) {
+  async processWithReasoningModel(text, model, agentName, awData = null) {
     logger.logReasoning("CALLING_REASONING_SERVICE", {
       model,
       agentName,
       textLength: text.length,
+      hasAdamWisprData: !!awData,
     });
 
     const startTime = Date.now();
 
     try {
-      const result = await ReasoningService.processText(text, model, agentName);
+      const settings = getSettings();
+      const awPromptData = awData
+        ? {
+            profile: awData.profile,
+            corrections: awData.corrections,
+            styleDescriptions: awData.styleDescriptions,
+            formattingInstructions: awData.formattingInstructions,
+            appName: awData.appName,
+            url: awData.url,
+            pageTitle: awData.pageTitle,
+            surroundingText: awData.surroundingText,
+            category: awData.category,
+          }
+        : undefined;
+      // Cap output tokens based on original transcript length, not enriched text
+      // Cleanup should never produce more text than ~2x the input
+      const maxOutputTokens = awData
+        ? Math.max(256, Math.ceil(text.length / 3) * 2)
+        : undefined;
+      const config = {
+        ...(awPromptData
+          ? {
+              systemPrompt: getSystemPrompt(
+                agentName,
+                settings.customDictionary,
+                settings.preferredLanguage || "auto",
+                text,
+                settings.uiLanguage || "en",
+                awPromptData
+              ),
+            }
+          : {}),
+        ...(maxOutputTokens ? { maxTokens: maxOutputTokens } : {}),
+      };
+      const result = await ReasoningService.processText(
+        text,
+        model,
+        agentName,
+        Object.keys(config).length > 0 ? config : undefined
+      );
 
       const processingTime = Date.now() - startTime;
 
@@ -1036,6 +1082,23 @@ registerProcessor("pcm-streaming-processor", PCMStreamingProcessor);
     }
   }
 
+  async getAdamWisprContextData() {
+    if (!this.adamWisprContextProvider) {
+      return null;
+    }
+
+    try {
+      return await this.adamWisprContextProvider();
+    } catch (error) {
+      logger.warn(
+        "AdamWispr context provider failed",
+        { error: error.message },
+        "dictation"
+      );
+      return null;
+    }
+  }
+
   async processTranscription(text, source) {
     const normalizedText = typeof text === "string" ? text.trim() : "";
 
@@ -1079,16 +1142,20 @@ registerProcessor("pcm-streaming-processor", PCMStreamingProcessor);
 
     if (useReasoning) {
       try {
+        const awData = await this.getAdamWisprContextData();
+
         logger.logReasoning("SENDING_TO_REASONING", {
           preparedTextLength: normalizedText.length,
           model: reasoningModel,
           provider: reasoningProvider,
+          hasAdamWisprData: !!awData,
         });
 
         const result = await this.processWithReasoningModel(
           normalizedText,
           reasoningModel,
-          agentName
+          agentName,
+          awData
         );
 
         logger.logReasoning("REASONING_SUCCESS", {
@@ -2496,6 +2563,7 @@ registerProcessor("pcm-streaming-processor", PCMStreamingProcessor);
     const streamingAudioBytesSent = stopResult?.audioBytesSent || 0;
     const streamingSttLanguage = getBaseLanguageCode(stSettings.preferredLanguage) || undefined;
     const streamingSttWordCount = finalText ? finalText.split(/\s+/).filter(Boolean).length : 0;
+    let rawFinalText = finalText;
 
     let usedCloudReasoning = false;
     if (stSettings.useReasoningModel && finalText && !this.skipReasoning) {
@@ -2545,10 +2613,12 @@ registerProcessor("pcm-streaming-processor", PCMStreamingProcessor);
         } else {
           const effectiveModel = getEffectiveReasoningModel();
           if (effectiveModel) {
+            const awData = await this.getAdamWisprContextData();
             const result = await this.processWithReasoningModel(
               finalText,
               effectiveModel,
-              agentName
+              agentName,
+              awData
             );
             if (result) {
               finalText = result;
@@ -2584,6 +2654,7 @@ registerProcessor("pcm-streaming-processor", PCMStreamingProcessor);
         });
         if (batchResult?.text) {
           finalText = batchResult.text;
+          rawFinalText = batchResult.text;
           usedBatchFallback = true;
           logger.info("Batch fallback succeeded", { textLength: finalText.length }, "streaming");
         }
@@ -2605,7 +2676,7 @@ registerProcessor("pcm-streaming-processor", PCMStreamingProcessor);
       this.onTranscriptionComplete?.({
         success: true,
         text: finalText,
-        rawText: finalText,
+        rawText: rawFinalText,
         source: `${this.sttConfig?.streamingProvider || "deepgram"}-streaming`,
       });
 
