@@ -1,9 +1,9 @@
 {
-  "appId": "com.herotools.openwispr",
-  "productName": "OpenWhispr",
+  "appId": "com.adamwispr.app",
+  "productName": "AdamWispr",
   "protocols": {
-    "name": "OpenWhispr Protocol",
-    "schemes": ["openwhispr"]
+    "name": "AdamWispr Protocol",
+    "schemes": ["adamwispr"]
   },
   "directories": {
     "output": "dist"
@@ -122,9 +122,9 @@
     "notarize": true,
     "extendInfo": {
       "LSUIElement": false,
-      "NSMicrophoneUsageDescription": "OpenWhispr uses the microphone to capture your voice for transcription.",
-      "NSAudioCaptureUsageDescription": "OpenWhispr uses system audio to capture other participants' audio from calls and meetings. Your screen is never recorded.",
-      "NSAccessibilityUsageDescription": "OpenWhispr needs accessibility permissions to paste transcribed text into other applications."
+      "NSMicrophoneUsageDescription": "AdamWispr uses the microphone to capture your voice for transcription.",
+      "NSAudioCaptureUsageDescription": "AdamWispr uses system audio to capture other participants' audio from calls and meetings. Your screen is never recorded.",
+      "NSAccessibilityUsageDescription": "AdamWispr needs accessibility permissions to paste transcribed text, detect context, and capture hotkeys."
     }
   },
   "win": {
@@ -201,7 +201,7 @@
     "include": "resources/nsis/cleanup-models.nsh"
   },
   "dmg": {
-    "title": "OpenWhispr",
+    "title": "AdamWispr",
     "icon": "src/assets/icon.icns",
     "window": {
       "width": 540,
@@ -210,8 +210,8 @@
   },
   "publish": {
     "provider": "github",
-    "owner": "OpenWhispr",
-    "repo": "openwhispr",
+    "owner": "adamamzalag",
+    "repo": "adamwispr",
     "private": false,
     "releaseType": "draft"
   }

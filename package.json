@@ -1,7 +1,7 @@
 {
-  "name": "open-whispr",
-  "version": "1.6.4",
-  "description": "A desktop dictation application using whisper.cpp for speech-to-text transcription",
+  "name": "adamwispr",
+  "version": "1.0.0",
+  "description": "Personalized voice-to-text dictation with AI-powered cleanup",
   "main": "main.js",
   "private": true,
   "engines": {

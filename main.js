@@ -56,7 +56,7 @@ function configureChannelUserDataPath() {
     return;
   }
 
-  const isolatedPath = path.join(app.getPath("appData"), `OpenWhispr-${APP_CHANNEL}`);
+  const isolatedPath = path.join(app.getPath("appData"), `AdamWispr-${APP_CHANNEL}`);
   app.setPath("userData", isolatedPath);
 }
 
@@ -123,7 +123,7 @@ function shouldRegisterProtocolWithAppArg() {
 // Register custom protocol for OAuth callbacks.
 // In development, always include the app path argument so macOS/Windows/Linux
 // can launch the project app instead of opening bare Electron.
-function registerOpenWhisprProtocol() {
+function registerAdamWisprProtocol() {
   const protocol = OAUTH_PROTOCOL;
 
   if (shouldRegisterProtocolWithAppArg()) {
@@ -134,7 +134,7 @@ function registerOpenWhisprProtocol() {
   return app.setAsDefaultProtocolClient(protocol);
 }
 
-const protocolRegistered = registerOpenWhisprProtocol();
+const protocolRegistered = registerAdamWisprProtocol();
 if (!protocolRegistered) {
   console.warn(`[Auth] Failed to register ${OAUTH_PROTOCOL}:// protocol handler`);
 }
@@ -148,8 +148,8 @@ if (!gotSingleInstanceLock) {
 const isLiveWindow = (window) => window && !window.isDestroyed();
 
 // Ensure macOS menus use the proper casing for the app name
-if (process.platform === "darwin" && app.getName() !== "OpenWhispr") {
-  app.setName("OpenWhispr");
+if (process.platform === "darwin" && app.getName() !== "AdamWispr") {
+  app.setName("AdamWispr");
 }
 
 // Add global error handling for uncaught exceptions
@@ -484,7 +484,7 @@ function startAuthBridgeServer() {
 
     res.writeHead(200, { "Content-Type": "text/html; charset=utf-8" });
     res.end(
-      "<html><body><h3>OpenWhispr sign-in complete.</h3><p>You can close this tab.</p></body></html>"
+      "<html><body><h3>AdamWispr sign-in complete.</h3><p>You can close this tab.</p></body></html>"
     );
   });
 
