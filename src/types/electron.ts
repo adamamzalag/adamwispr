@@ -282,6 +282,101 @@ declare global {
       onStartDictation?: (callback: () => void) => () => void;
       onStopDictation?: (callback: () => void) => () => void;
 
+      // AdamWispr
+      awGetContext: () => Promise<{
+        appName: string;
+        windowTitle: string | null;
+        surroundingText: string | null;
+        isSecureField: boolean;
+        fieldRole: string | null;
+        fieldSubrole: string | null;
+      }>;
+      awGetBrowserUrl: (appName: string) => Promise<string | null>;
+      awHasApiKey?: () => Promise<boolean>;
+      awSetApiKey?: (key: string) => Promise<boolean>;
+      awRunCleanup: (request: {
+        systemPrompt: string;
+        userMessage: string;
+        model: string;
+        timeoutMs: number;
+      }) => Promise<{
+        cleanedText: string;
+        status: "success" | "timeout" | "error" | "skipped";
+        errorMessage?: string;
+      }>;
+      awAutoCategorize: (request: {
+        appName: string;
+        url?: string;
+        categories: string[];
+        model: string;
+      }) => Promise<string>;
+      awSaveDictationHistory: (
+        raw: string,
+        cleaned: string,
+        app: string,
+        style: string,
+        status: string
+      ) => Promise<unknown>;
+      awGetDictationHistory?: (limit?: number) => Promise<any[]>;
+      awSaveCorrection?: (
+        original: string,
+        corrected: string,
+        app: string
+      ) => Promise<unknown>;
+      awGetCorrections: (
+        limit?: number
+      ) => Promise<Array<{ original_word: string; corrected_word: string; count: number }>>;
+      awGetRecentCorrections?: (days?: number) => Promise<any[]>;
+      awSaveProfileEntry?: (key: string, value: string, source?: string) => Promise<unknown>;
+      awGetProfile: () => Promise<Array<{ key: string; value: string }>>;
+      awDeleteProfileEntry?: (id: number) => Promise<unknown>;
+      awSaveDictationStats: (
+        wordCount: number,
+        duration: number,
+        wpm: number,
+        app: string
+      ) => Promise<unknown>;
+      awGetStats?: () => Promise<unknown>;
+      awSaveAppCategory: (
+        app: string,
+        url: string,
+        cat: string,
+        auto: boolean
+      ) => Promise<unknown>;
+      awGetAppCategories: () => Promise<
+        Array<{ app_name: string; url_pattern: string | null; category: string }>
+      >;
+      awDeleteAppCategory?: (id: number) => Promise<unknown>;
+      awSaveDenylistEntry?: (
+        app: string,
+        url: string,
+        reason: string
+      ) => Promise<unknown>;
+      awGetDenylist: () => Promise<Array<{ app_name: string; url_pattern: string }>>;
+      awDeleteDenylistEntry?: (id: number) => Promise<unknown>;
+      awSavePasteboard?: () => Promise<{
+        items: Array<{ type: string; data: unknown }>;
+        textFingerprint: string;
+        formatFingerprint: string;
+      }>;
+      awTakePostPasteFingerprint?: () => Promise<{
+        textFingerprint: string;
+        formatFingerprint: string;
+      }>;
+      awRestorePasteboard?: (
+        state: {
+          items: Array<{ type: string; data: unknown }>;
+          textFingerprint: string;
+          formatFingerprint: string;
+        },
+        postPasteFingerprint: {
+          textFingerprint: string;
+          formatFingerprint: string;
+        }
+      ) => Promise<boolean>;
+      awCaptureFieldReference?: () => Promise<string | null>;
+      awRefocusCapturedField?: () => Promise<boolean>;
+
       // STT config
       getSttConfig?: () => Promise<{
         success: boolean;
@@ -1161,6 +1256,14 @@ declare global {
       onGcalStartRecording?: (callback: (data: any) => void) => () => void;
       onGcalConnectionChanged?: (callback: (data: any) => void) => () => void;
       onGcalEventsSynced?: (callback: (data: any) => void) => () => void;
+
+      // Update notification overlay
+      onUpdateNotificationData?: (
+        callback: (data: { version: string; releaseDate?: string }) => void
+      ) => () => void;
+      getUpdateNotificationData?: () => Promise<{ version: string; releaseDate?: string } | null>;
+      updateNotificationReady?: () => Promise<void>;
+      updateNotificationRespond?: (action: string) => Promise<void>;
 
       meetingDetectionGetPreferences?: () => Promise<{ success: boolean; preferences?: any }>;
       meetingDetectionSetPreferences?: (

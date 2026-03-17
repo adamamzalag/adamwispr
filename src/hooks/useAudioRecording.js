@@ -6,6 +6,191 @@ import { playStartCue, playStopCue } from "../utils/dictationCues";
 import { getSettings } from "../stores/settingsStore";
 import { getRecordingErrorTitle } from "../utils/recordingErrors";
 
+function parseStyleDescriptions(value) {
+  if (!value) return {};
+
+  try {
+    const parsed = JSON.parse(value);
+    return parsed && typeof parsed === "object" ? parsed : {};
+  } catch (error) {
+    logger.warn(
+      "Failed to parse AdamWispr style descriptions",
+      { error: error.message },
+      "dictation"
+    );
+    return {};
+  }
+}
+
+async function autoCategorizeNewApp(settings, context, CleanupService) {
+  if (settings.awAutoCategorizeMode !== "auto" || !context?.appName) {
+    return;
+  }
+
+  try {
+    const categories = await window.electronAPI.awGetAppCategories();
+    const isKnown = categories.some((category) => {
+      const appMatches = category.app_name && context.appName.includes(category.app_name);
+      const urlPattern = category.url_pattern || "";
+      const urlMatches = urlPattern ? context.url?.includes(urlPattern) : true;
+      return appMatches && urlMatches;
+    });
+
+    if (isKnown) {
+      return;
+    }
+
+    const existingCategoryNames = [...new Set(categories.map((category) => category.category))];
+    const suggestedCategory = await CleanupService.autoCategorize(
+      context.appName,
+      context.url,
+      existingCategoryNames
+    );
+
+    await window.electronAPI.awSaveAppCategory(
+      context.appName,
+      context.url || "",
+      suggestedCategory,
+      true
+    );
+  } catch (error) {
+    logger.warn(
+      "Failed to auto-categorize app after dictation",
+      { appName: context?.appName, error: error.message },
+      "dictation"
+    );
+  }
+}
+
+async function processAndPaste({
+  rawTranscript,
+  durationSeconds,
+  pasteOptions,
+  audioManager,
+  toast,
+  t,
+}) {
+  const settings = getSettings();
+  const defaultCategory = settings.awDefaultCategory || "Professional";
+  const fallbackContext = {
+    appName: "Unknown",
+    category: defaultCategory,
+    url: undefined,
+  };
+
+  let cleanedText = rawTranscript;
+  let cleanupStatus = "skipped";
+  let cleanupErrorMessage;
+  let context = fallbackContext;
+  let CleanupService;
+  let LearningService;
+
+  try {
+    const [
+      { ContextService },
+      cleanupModule,
+      learningModule,
+    ] = await Promise.all([
+      import("../services/ContextService"),
+      import("../services/CleanupService"),
+      import("../services/LearningService"),
+    ]);
+
+    CleanupService = cleanupModule.CleanupService;
+    LearningService = learningModule.LearningService;
+    context = await ContextService.getCurrentContext();
+
+    const [corrections, profile] = await Promise.all([
+      window.electronAPI.awGetCorrections(500),
+      window.electronAPI.awGetProfile(),
+    ]);
+
+    const cleanupResult = await CleanupService.cleanup({
+      rawTranscript,
+      context,
+      corrections,
+      profile,
+      styleDescriptions: parseStyleDescriptions(settings.awStyleDescriptions),
+      formattingInstructions: settings.awFormattingInstructions || "",
+    });
+
+    cleanedText = cleanupResult.cleanedText || rawTranscript;
+    cleanupStatus = cleanupResult.status;
+    cleanupErrorMessage = cleanupResult.errorMessage;
+  } catch (error) {
+    cleanupStatus = "error";
+    cleanupErrorMessage = error.message;
+    logger.warn(
+      "AdamWispr cleanup pipeline failed, falling back to raw transcript",
+      { error: error.message },
+      "dictation"
+    );
+  }
+
+  const textToPaste = cleanedText || rawTranscript;
+  const wordCount = textToPaste.split(/\s+/).filter(Boolean).length;
+  const safeDurationSeconds =
+    Number.isFinite(durationSeconds) && durationSeconds > 0 ? durationSeconds : 0;
+  const wpm = safeDurationSeconds > 0 ? (wordCount / safeDurationSeconds) * 60 : 0;
+
+  await Promise.allSettled([
+    window.electronAPI.awSaveDictationHistory(
+      rawTranscript,
+      textToPaste,
+      context.appName,
+      context.category,
+      cleanupStatus
+    ),
+    window.electronAPI.awSaveDictationStats(
+      wordCount,
+      safeDurationSeconds,
+      wpm,
+      context.appName
+    ),
+  ]);
+
+  const pasted = await audioManager.safePaste(textToPaste, pasteOptions);
+
+  if (pasted && settings.awTextFieldTracking && LearningService) {
+    void LearningService.startCorrectionMonitoring(textToPaste, context.appName).catch((error) => {
+      logger.warn(
+        "Failed to start correction monitoring",
+        { appName: context.appName, error: error.message },
+        "dictation"
+      );
+    });
+  }
+
+  if (pasted && CleanupService) {
+    void autoCategorizeNewApp(settings, context, CleanupService);
+  }
+
+  if (settings.awHasOpenRouterApiKey && cleanupStatus === "timeout") {
+    toast({
+      title: t("hooks.audioRecording.cleanupTimeoutTitle", "Cleanup timed out"),
+      description: t("hooks.audioRecording.cleanupTimeoutDescription", "Raw text was pasted."),
+      variant: "default",
+    });
+  } else if (
+    settings.awHasOpenRouterApiKey &&
+    cleanupStatus === "error" &&
+    cleanupErrorMessage
+  ) {
+    toast({
+      title: t("hooks.audioRecording.cleanupFailedTitle", "Cleanup failed"),
+      description: cleanupErrorMessage,
+      variant: "default",
+    });
+  }
+
+  return {
+    textToPaste,
+    context,
+    cleanupStatus,
+    pasted,
+  };
+}
+
 export const useAudioRecording = (toast, options = {}) => {
   const { t } = useTranslation();
   const [isRecording, setIsRecording] = useState(false);
@@ -109,26 +294,52 @@ export const useAudioRecording = (toast, options = {}) => {
             return;
           }
 
-          setTranscript(result.text);
-
           const isStreaming = result.source?.includes("streaming");
           const { keepTranscriptionInClipboard } = getSettings();
-          const pasteStart = performance.now();
-          await audioManagerRef.current.safePaste(result.text, {
-            ...(isStreaming ? { fromStreaming: true } : {}),
-            restoreClipboard: !keepTranscriptionInClipboard,
+          const rawTranscript = result.rawText?.trim() || result.text;
+          const durationSeconds = audioManagerRef.current?.lastAudioMetadata?.durationMs
+            ? audioManagerRef.current.lastAudioMetadata.durationMs / 1000
+            : 0;
+          const processingStart = performance.now();
+          const processedResult = await processAndPaste({
+            rawTranscript,
+            durationSeconds,
+            audioManager: audioManagerRef.current,
+            toast,
+            t,
+            pasteOptions: {
+              ...(isStreaming ? { fromStreaming: true } : {}),
+              restoreClipboard: !keepTranscriptionInClipboard,
+            },
           });
+          const processingDurationMs = Math.round(performance.now() - processingStart);
+
+          setTranscript(processedResult.textToPaste);
+
+          logger.info(
+            "Dictation cleanup and paste timing",
+            {
+              totalMs: processingDurationMs,
+              source: result.source,
+              cleanupStatus: processedResult.cleanupStatus,
+              textLength: processedResult.textToPaste.length,
+              appName: processedResult.context?.appName,
+              pasted: processedResult.pasted,
+            },
+            "dictation"
+          );
+
+          audioManagerRef.current.saveTranscription(processedResult.textToPaste, rawTranscript);
+
           logger.info(
             "Paste timing",
             {
-              pasteMs: Math.round(performance.now() - pasteStart),
+              pasteMs: processingDurationMs,
               source: result.source,
-              textLength: result.text.length,
+              textLength: processedResult.textToPaste.length,
             },
             "streaming"
           );
-
-          audioManagerRef.current.saveTranscription(result.text, result.rawText ?? result.text);
 
           if (result.source === "openai" && getSettings().useLocalWhisper) {
             toast({
